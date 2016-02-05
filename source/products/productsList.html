@@ -1,0 +1,24 @@
+
+<div class="main-cointainer">
+	<div ng-include="'header.html'"></div>
+	<div class="container">
+		<table class="table table-striped" style="background-color: lightblue">
+		  <thead>
+		    <tr>
+		      <th>#</th>
+		      <th>First Name</th>
+		      <th>Last Name</th>
+		      <th>Username</th>
+		    </tr>
+		  </thead>
+		  <tbody>
+		    <tr ng-repeat="product in products">
+		      <th scope="row">#</th>
+		      <td>{{ product.name }}</td>
+		      <td>{{ product.name + product.name }}</td>
+		      <td>{{ product.name + product.name + product.name }}</td>
+		    </tr>
+		  </tbody>
+		</table>
+	</div>
+</div>

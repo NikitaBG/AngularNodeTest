@@ -30646,3 +30646,88 @@ function ngViewFillContentFactory($compile, $controller, $route) {
 
 
 })(window, window.angular);
+
+var app = angular.module('app',['ngRoute','templates']);
+
+app.config(['$routeProvider', '$locationProvider', 
+ function($routeProvider,$locationProvider) {
+	$routeProvider.when('/', {
+		templateUrl: 'login.html',
+		controller: 'loginCtrl',
+		controllerAs: 'login'
+	})
+	/*.when('/users', {
+		templateUrl: 'usersList.html'
+	})*/
+	.when('/users/:userId', {
+		templateUrl: 'usersEdit.html'
+	})
+	.when('/products', {
+		templateUrl: 'productsList.html',
+		controller: 'productsListCtrl',
+		controllerAs: 'productsList'
+	})
+	.when('/products/:productsId', {
+		templateUrl: 'productsEdit.html'
+	})
+	.otherwise({
+		redirectTo: '/'
+	});
+	$locationProvider.html5Mode({enabled: true, requireBase: false});
+	$locationProvider.hashPrefix('!');
+}]);
+
+angular.module("app").controller('loginCtrl', ['$scope', function($scope) {
+    $('.form').find('input, textarea').on('keyup blur focus', function (e) {
+  
+  var $this = $(this),
+      label = $this.prev('label');
+
+	  if (e.type === 'keyup') {
+			if ($this.val() === '') {
+          label.removeClass('active highlight');
+        } else {
+          label.addClass('active highlight');
+        }
+    } else if (e.type === 'blur') {
+    	if( $this.val() === '' ) {
+    		label.removeClass('active highlight'); 
+			} else {
+		    label.removeClass('highlight');   
+			}   
+    } else if (e.type === 'focus') {
+      
+      if( $this.val() === '' ) {
+    		label.removeClass('highlight'); 
+			} 
+      else if( $this.val() !== '' ) {
+		    label.addClass('highlight');
+			}
+    }
+
+});
+
+$('.tab a').on('click', function (e) {
+  
+  e.preventDefault();
+  
+  $(this).parent().addClass('active');
+  $(this).parent().siblings().removeClass('active');
+  
+  target = $(this).attr('href');
+
+  $('.tab-content > div').not(target).hide();
+  
+  $(target).fadeIn(600);
+  
+});
+}]);
+angular.module("app").controller('productsListCtrl', ['$scope', function($scope) {
+    $scope.products = [{"name":"z"},{"name":"x"},{"name":"c"},{"name":"v"},{"name":"b"}]
+}]);
+angular.module("templates", []).run(["$templateCache", function($templateCache) {$templateCache.put("header.html","<nav class=\"navbar navbar-inverse navbar-fixed-top\">\r\n  <div class=\"col-md-12\">\r\n    <div class=\"navbar-header\">\r\n      <button type=\"button\" class=\"navbar-toggle collapsed\" data-toggle=\"collapse\" data-target=\"#navbar\" aria-expanded=\"false\" aria-controls=\"navbar\">\r\n        <span class=\"sr-only\">Toggle navigation</span>\r\n        <span class=\"icon-bar\"></span>\r\n        <span class=\"icon-bar\"></span>\r\n        <span class=\"icon-bar\"></span>\r\n      </button>\r\n      <a class=\"navbar-brand\">AngularJS</a>\r\n    </div>\r\n    <div id=\"navbar\" class=\"collapse navbar-collapse\">\r\n      <ul class=\"nav navbar-nav\">\r\n        <li class=\"active\"><a href=\"/products\">Products</a></li>\r\n        <!--<li><a href=\"#about\">Users</a></li>-->\r\n      </ul>\r\n    <ul class=\"nav navbar-nav navbar-right\">\r\n  	<p class=\"navbar-text\">FirstName LastName</p>\r\n  	<li><a>Settings</a></li>\r\n  	<li><a>Log Out</a></li>\r\n    </ul>\r\n    </div>\r\n  </div>\r\n</nav>");
+$templateCache.put("login.html","<div class=\"form\">\r\n      \r\n      <ul class=\"tab-group\">\r\n        <li class=\"tab active\"><a href=\"#signup\">Sign Up</a></li>\r\n        <li class=\"tab\"><a href=\"#login\">Log In</a></li>\r\n      </ul>\r\n      \r\n      <div class=\"tab-content\">\r\n        <div id=\"signup\">   \r\n          <h1>Sign Up for Free</h1>\r\n          \r\n          <form action=\"/\" method=\"post\">\r\n          \r\n          <div class=\"top-row\">\r\n            <div class=\"field-wrap\">\r\n              <label>\r\n                First Name<span class=\"req\">*</span>\r\n              </label>\r\n              <input type=\"text\" required autocomplete=\"off\" />\r\n            </div>\r\n        \r\n            <div class=\"field-wrap\">\r\n              <label>\r\n                Last Name<span class=\"req\">*</span>\r\n              </label>\r\n              <input type=\"text\"required autocomplete=\"off\"/>\r\n            </div>\r\n          </div>\r\n\r\n          <div class=\"field-wrap\">\r\n            <label>\r\n              Email Address<span class=\"req\">*</span>\r\n            </label>\r\n            <input type=\"email\"required autocomplete=\"off\"/>\r\n          </div>\r\n          \r\n          <div class=\"field-wrap\">\r\n            <label>\r\n              Set A Password<span class=\"req\">*</span>\r\n            </label>\r\n            <input type=\"password\"required autocomplete=\"off\"/>\r\n          </div>\r\n          \r\n          <button type=\"submit\" class=\"button button-block\"/>Get Started</button>\r\n          \r\n          </form>\r\n\r\n        </div>\r\n        \r\n        <div id=\"login\">   \r\n          <h1>Welcome Back!</h1>\r\n          \r\n          <form action=\"/\" method=\"post\">\r\n          \r\n            <div class=\"field-wrap\">\r\n            <label>\r\n              Email Address<span class=\"req\">*</span>\r\n            </label>\r\n            <input type=\"email\"required autocomplete=\"off\"/>\r\n          </div>\r\n          \r\n          <div class=\"field-wrap\">\r\n            <label>\r\n              Password<span class=\"req\">*</span>\r\n            </label>\r\n            <input type=\"password\"required autocomplete=\"off\"/>\r\n          </div>\r\n          \r\n          <p class=\"forgot\"><a href=\"#\">Forgot Password?</a></p>\r\n          \r\n          <button class=\"button button-block\"/>Log In</button>\r\n          \r\n          </form>\r\n\r\n        </div>\r\n        \r\n      </div><!-- tab-content -->\r\n      \r\n</div>");
+$templateCache.put("productsEdit.html","");
+$templateCache.put("productsList.html","\r\n<div class=\"main-cointainer\">\r\n	<div ng-include=\"\'header.html\'\"></div>\r\n	<div class=\"container\">\r\n		<table class=\"table table-striped\" style=\"background-color: lightblue\">\r\n		  <thead>\r\n		    <tr>\r\n		      <th>#</th>\r\n		      <th>First Name</th>\r\n		      <th>Last Name</th>\r\n		      <th>Username</th>\r\n		    </tr>\r\n		  </thead>\r\n		  <tbody>\r\n		    <tr ng-repeat=\"product in products\">\r\n		      <th scope=\"row\">#</th>\r\n		      <td>{{ product.name }}</td>\r\n		      <td>{{ product.name + product.name }}</td>\r\n		      <td>{{ product.name + product.name + product.name }}</td>\r\n		    </tr>\r\n		  </tbody>\r\n		</table>\r\n	</div>\r\n</div>");
+$templateCache.put("usersEdit.html","");
+$templateCache.put("usersList.html","<h1> works </h1>");}]);
