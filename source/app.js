@@ -1,25 +1,29 @@
-var app = angular.module('app',['ngRoute','templates']);
+var app = angular.module('app',['ngRoute','templates','appControllers','appServices','appDirectives']);
 
 app.config(['$routeProvider', '$locationProvider', 
  function($routeProvider,$locationProvider) {
 	$routeProvider.when('/', {
 		templateUrl: 'login.html',
 		controller: 'loginCtrl',
-		controllerAs: 'login'
+		controllerAs: 'login',
+		access: { requiredLogin: false }
 	})
 	/*.when('/users', {
 		templateUrl: 'usersList.html'
 	})*/
 	.when('/users/:userId', {
-		templateUrl: 'usersEdit.html'
+		templateUrl: 'usersEdit.html',
+		access: { requiredLogin: true }
 	})
 	.when('/products', {
 		templateUrl: 'productsList.html',
 		controller: 'productsListCtrl',
-		controllerAs: 'productsList'
+		controllerAs: 'productsList',
+		access: { requiredLogin: true }
 	})
 	.when('/products/:productsId', {
-		templateUrl: 'productsEdit.html'
+		templateUrl: 'productsEdit.html',
+		access: { requiredLogin: true }
 	})
 	.otherwise({
 		redirectTo: '/'
@@ -27,3 +31,19 @@ app.config(['$routeProvider', '$locationProvider',
 	$locationProvider.html5Mode({enabled: true, requireBase: false});
 	$locationProvider.hashPrefix('!');
 }]);
+
+app.config(function ($httpProvider) {
+    $httpProvider.interceptors.push('tokenService');
+});
+
+app.run(function($rootScope, $location, authService) {
+    $rootScope.$on("$routeChangeStart", function(event, nextRoute, currentRoute) {
+        if (nextRoute.access && nextRoute.access.requiredLogin && !authService.isLogged) {
+            $location.path("/");
+        }
+    });
+});
+
+var appControllers = angular.module('appControllers', []);
+var appServices = angular.module('appServices', []);
+var appDirectives = angular.module('appDirectives', []);
