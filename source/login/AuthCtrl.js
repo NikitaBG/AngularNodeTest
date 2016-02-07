@@ -1,14 +1,14 @@
-appControllers.controller('AdminUserCtrl', ['$scope', '$location', '$window', 'UserService', 'AuthenticationService',
-    function AdminUserCtrl($scope, $location, $window, UserService, AuthenticationService) {
+appControllers.controller('authCtrl', ['$scope', '$location', '$window', 'userService', 'authService',
+    function authCtrl($scope, $location, $window, userService, authService) {
  
         //Admin User Controller (login, logout)
         $scope.logIn = function logIn(username, password) {
             if (username !== undefined && password !== undefined) {
  
-                UserService.logIn(username, password).success(function(data) {
-                    AuthenticationService.isLogged = true;
+                userService.logIn(username, password).success(function(data) {
+                    authService.isLogged = true;
                     $window.sessionStorage.token = data.token;
-                    $location.path("/admin");
+                    $location.path("/products");
                 }).error(function(status, data) {
                     console.log(status);
                     console.log(data);
@@ -17,8 +17,8 @@ appControllers.controller('AdminUserCtrl', ['$scope', '$location', '$window', 'U
         }
  
         $scope.logout = function logout() {
-            if (AuthenticationService.isLogged) {
-                AuthenticationService.isLogged = false;
+            if (authService.isLogged) {
+                authService.isLogged = false;
                 delete $window.sessionStorage.token;
                 $location.path("/");
             }

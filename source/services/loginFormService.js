@@ -1,6 +1,6 @@
 appServices.factory('loginFormService', ['$window', function() {
 	return function(){
-		$('.form').find('input, textarea').on('keyup blur focus', function (e) {
+		$('.login-form').find('input, textarea').on('keyup blur focus', function (e) {
 
 		var $this = $(this),
 		  label = $this.prev('label');
@@ -38,7 +38,7 @@ appServices.factory('loginFormService', ['$window', function() {
 
 		target = $(this).attr('href');
 
-		$('.tab-content > div').not(target).hide();
+		$('.login-tab-content > div').not(target).hide();
 
 		$(target).fadeIn(600);
 

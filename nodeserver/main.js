@@ -9,10 +9,10 @@ var bcrypt = require('bcryptjs');
 var jwt = require('jwt-simple');
 var mysql = require('mysql');
 var connection = mysql.createConnection({
-   host     : '192.168.31.45',
+   host     : 'localhost',
    user     : 'root',
    password : '111111',
-   database : 'node_test'
+   database : 'test_node'
  });
 
 app.set('jwtTokenSecret','mind_game');
@@ -26,6 +26,8 @@ var authJWT = function(req, res, next){
 			if(decoded.uuid && decoded.email && decoded.role && decoded.exp >= Date.now()){
 				connection.query("SELECT 1 FROM users WHERE users.uuid='" + decoded.uuid + "' AND  users.email='" + decoded.email + "' AND users.role='" + decoded.role + "'", function(err, results, fields){
 					if(results && results[0] && results[0][1]) {
+						res.setHeader("Auth-token", token);
+						req.userId = decoded.id;
 						return next();
 					} else 		
 						res.writeHead(401);{
@@ -67,11 +69,11 @@ app.put("/users", authJWT, function(req, res){
 app.post("/users", function(req, res){
 	var user = req.body;
 	bcrypt.genSalt(10, function(err, salt) {
-    	bcrypt.hash("B4c0/\/", salt, function(err, hash) {
+    	bcrypt.hash(user.password, salt, function(err, hash) {
 	        var query = ['INSERT INTO users(first_name, last_name, email, phone_number, password, uuid) VALUES ("' + user.first_name,user.last_name,user.email,user.phone_number,hash + '",UUID())'];
-			console.log(query);
 			connection.query(query.join('","'), function(err, results, fields){
 				if(err || '') { 
+					console.log(err);
 					res.writeHead(500);
 					res.end("SQL TRANSACTION ERROR");
 					return;
@@ -83,16 +85,19 @@ app.post("/users", function(req, res){
 	res.end();
 });
 
-app.get("/products", authJWT, function(req, res) {
+app.get("/api/products", authJWT, function(req, res) {
 	res.writeHead(200, {'Content-Type': 'application/json'});
-	connection.query('SELECT name,price,description,amount FROM products', function(err, results, fields){
+	connection.query('SELECT name,price,description,amount,uuid,id FROM products', function(err, results, fields){
 		if(err || '') { console.log(err); }
-		res.end(JSON.stringify(results));
+		if(!results.length){
+			res.end(JSON.stringify({'results':'No data', 'content':[]}));
+		}
+		res.end(JSON.stringify({'results':'All done', 'content':results}));
 	});
 });
-app.post("/products", authJWT, function(req, res) {
+app.post("/api/products", authJWT, function(req, res) {
 	var product = req.body;
-	var query = ["INSERT INTO products(name, price, description, amount) VALUES ('" + product.name,product.price,product.description,product.amount + "')"];
+	var query = ["INSERT INTO products(name, price, description, amount, uuid, user_id) VALUES ('" + product.name,product.price,product.description,product.amount + "',UUID()," + req.userId + ")"];
 	console.log(query.join("','"));
 	connection.query(query.join("','"), function(err, results, fields){
 		if(err || '') { console.log(err); }
@@ -100,34 +105,53 @@ app.post("/products", authJWT, function(req, res) {
 	res.writeHead(200);
 	res.end();
 });
+
 app.put("/products", authJWT, function(req, res) {
 	var product = req.body;
 	var query = ["UPDATE products SET name=",product.name," ,price=",product.price," ,description=",product.description," ,amount=",product.amount," WHERE id=",1];
 	console.log(query.join("','"));
 	connection.query(query.join("','"), function(err, results, fields){
 		if(err || '') { console.log(err); }
-	});""
+	});
 	res.writeHead(200);
 	res.end();
 });
+app.delete("/api/products/:uuid", authJWT, function(req, res) {
+	if(!req.params.uuid){
+		res.writeHead(404);
+		res.end({"result":"No uuid."});
+	} else {
+		var query = "DELETE FROM products WHERE products.uuid='" + req.params.uuid + "'";
+		connection.query(query, function(err, results, fields){
+			if(err || '') { console.log(err); }
+		});
+		res.writeHead(200);
+		res.end(JSON.stringify({"result":"Deleted."}));
+	}
+});
 
-app.post("/login",function(req, res){
+app.post("/api/login",function(req, res){
 	var email = req.body.email || '',
 	    password = req.body.password || '';
 	if(email == '' && password == ''){
 		res.end(400);
 	}
 	connection.query("SELECT * FROM users WHERE users.email = '" + email + "';", function(err, results, fields){
-		bcrypt.compare(req.body.password, results[0].password, function(err, result) {
-			if(result){
-				res.setHeader("Auth-token", createToken(results[0]));
-				res.writeHead(200);
-				res.end("Confirm it...");
-			} else {
-				res.writeHead(401);
-				res.end(JSON.stringify({'result':'WRONG PASSWORD'}));
-			}
-		});
+		if(results.length){
+			bcrypt.compare(req.body.password, results[0].password, function(err, result) {
+				if(result){
+					res.setHeader("Auth-token", createToken(results[0]));
+					res.writeHead(200);
+					res.end(JSON.stringify({'token':createToken(results[0])}));
+				} else {
+					res.writeHead(401);
+					res.end(JSON.stringify({'result':'WRONG PASSWORD'}));
+				}
+			});
+		} else {
+			res.writeHead(404);
+			res.end(JSON.stringify({'result':"User with this email doesn't exists."}));
+		}
 	});
 });
 
@@ -142,6 +166,7 @@ var createToken = function(data){
 	tokenData.uuid = data.uuid;
 	tokenData.email = data.email;
 	tokenData.role = data.role;
+	tokenData.id = data.id;
 	tokenData.exp = Date.now() + 86400000;
 	return jwt.encode(tokenData, app.get('jwtTokenSecret'));
 }

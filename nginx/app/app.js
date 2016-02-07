@@ -29656,8 +29656,8 @@ $provide.value("$locale", {
 
 !window.angular.$$csp().noInlineStyle && window.angular.element(document.head).prepend('<style type="text/css">@charset "UTF-8";[ng\\:cloak],[ng-cloak],[data-ng-cloak],[x-ng-cloak],.ng-cloak,.x-ng-cloak,.ng-hide:not(.ng-hide-animate){display:none !important;}ng\\:form{display:block;}.ng-animate-shim{visibility:hidden;}.ng-anchor{position:absolute;}</style>');
 /**
- * @license AngularJS v1.4.9
- * (c) 2010-2015 Google, Inc. http://angularjs.org
+ * @license AngularJS v1.5.0
+ * (c) 2010-2016 Google, Inc. http://angularjs.org
  * License: MIT
  */
 (function(window, angular, undefined) {'use strict';
@@ -29762,8 +29762,17 @@ function $RouteProvider() {
    *      If all the promises are resolved successfully, the values of the resolved promises are
    *      injected and {@link ngRoute.$route#$routeChangeSuccess $routeChangeSuccess} event is
    *      fired. If any of the promises are rejected the
-   *      {@link ngRoute.$route#$routeChangeError $routeChangeError} event is fired. The map object
-   *      is:
+   *      {@link ngRoute.$route#$routeChangeError $routeChangeError} event is fired.
+   *      For easier access to the resolved dependencies from the template, the `resolve` map will
+   *      be available on the scope of the route, under `$resolve` (by default) or a custom name
+   *      specified by the `resolveAs` property (see below). This can be particularly useful, when
+   *      working with {@link angular.Module#component components} as route templates.<br />
+   *      <div class="alert alert-warning">
+   *        **Note:** If your scope already contains a property with this name, it will be hidden
+   *        or overwritten. Make sure, you specify an appropriate name for this property, that
+   *        does not collide with other properties on the scope.
+   *      </div>
+   *      The map object is:
    *
    *      - `key` – `{string}`: a name of a dependency to be injected into the controller.
    *      - `factory` - `{string|function}`: If `string` then it is an alias for a service.
@@ -29773,7 +29782,10 @@ function $RouteProvider() {
    *        `ngRoute.$routeParams` will still refer to the previous route within these resolve
    *        functions.  Use `$route.current.params` to access the new route parameters, instead.
    *
-   *    - `redirectTo` – {(string|function())=} – value to update
+   *    - `resolveAs` - `{string=}` - The name under which the `resolve` map will be available on
+   *      the scope of the route. If omitted, defaults to `$resolve`.
+   *
+   *    - `redirectTo` – `{(string|function())=}` – value to update
    *      {@link ng.$location $location} path with and trigger route redirection.
    *
    *      If `redirectTo` is a function, it will be called with the following parameters:
@@ -29786,13 +29798,13 @@ function $RouteProvider() {
    *      The custom `redirectTo` function is expected to return a string which will be used
    *      to update `$location.path()` and `$location.search()`.
    *
-   *    - `[reloadOnSearch=true]` - {boolean=} - reload route when only `$location.search()`
+   *    - `[reloadOnSearch=true]` - `{boolean=}` - reload route when only `$location.search()`
    *      or `$location.hash()` changes.
    *
    *      If the option is set to `false` and url in the browser changes, then
    *      `$routeUpdate` event is broadcasted on the root scope.
    *
-   *    - `[caseInsensitiveMatch=false]` - {boolean=} - match routes without being case sensitive
+   *    - `[caseInsensitiveMatch=false]` - `{boolean=}` - match routes without being case sensitive
    *
    *      If the option is set to `true`, then the particular route can be matched without being
    *      case sensitive
@@ -29922,13 +29934,17 @@ function $RouteProvider() {
      * @property {Object} current Reference to the current route definition.
      * The route definition contains:
      *
-     *   - `controller`: The controller constructor as define in route definition.
+     *   - `controller`: The controller constructor as defined in the route definition.
      *   - `locals`: A map of locals which is used by {@link ng.$controller $controller} service for
      *     controller instantiation. The `locals` contain
      *     the resolved values of the `resolve` map. Additionally the `locals` also contain:
      *
      *     - `$scope` - The current route scope.
      *     - `$template` - The current route template HTML.
+     *
+     *     The `locals` will be assigned to the route scope's `$resolve` property. You can override
+     *     the property name, using `resolveAs` in the route definition. See
+     *     {@link ngRoute.$routeProvider $routeProvider} for more info.
      *
      * @property {Object} routes Object with all route configuration Objects as its properties.
      *
@@ -30125,10 +30141,18 @@ function $RouteProvider() {
            */
           reload: function() {
             forceReload = true;
+
+            var fakeLocationEvent = {
+              defaultPrevented: false,
+              preventDefault: function fakePreventDefault() {
+                this.defaultPrevented = true;
+                forceReload = false;
+              }
+            };
+
             $rootScope.$evalAsync(function() {
-              // Don't support cancellation of a reload for now...
-              prepareRoute();
-              commitRoute();
+              prepareRoute(fakeLocationEvent);
+              if (!fakeLocationEvent.defaultPrevented) commitRoute();
             });
           },
 
@@ -30638,6 +30662,7 @@ function ngViewFillContentFactory($compile, $controller, $route) {
         $element.data('$ngControllerController', controller);
         $element.children().data('$ngControllerController', controller);
       }
+      scope[current.resolveAs || '$resolve'] = locals;
 
       link(scope);
     }
@@ -30647,7 +30672,776 @@ function ngViewFillContentFactory($compile, $controller, $route) {
 
 })(window, window.angular);
 
-var app = angular.module('app',['ngRoute','templates','appControllers','appServices','appDirectives']);
+/**
+ * @license AngularJS v1.5.0
+ * (c) 2010-2016 Google, Inc. http://angularjs.org
+ * License: MIT
+ */
+(function(window, angular, undefined) {'use strict';
+
+var $resourceMinErr = angular.$$minErr('$resource');
+
+// Helper functions and regex to lookup a dotted path on an object
+// stopping at undefined/null.  The path must be composed of ASCII
+// identifiers (just like $parse)
+var MEMBER_NAME_REGEX = /^(\.[a-zA-Z_$@][0-9a-zA-Z_$@]*)+$/;
+
+function isValidDottedPath(path) {
+  return (path != null && path !== '' && path !== 'hasOwnProperty' &&
+      MEMBER_NAME_REGEX.test('.' + path));
+}
+
+function lookupDottedPath(obj, path) {
+  if (!isValidDottedPath(path)) {
+    throw $resourceMinErr('badmember', 'Dotted member path "@{0}" is invalid.', path);
+  }
+  var keys = path.split('.');
+  for (var i = 0, ii = keys.length; i < ii && angular.isDefined(obj); i++) {
+    var key = keys[i];
+    obj = (obj !== null) ? obj[key] : undefined;
+  }
+  return obj;
+}
+
+/**
+ * Create a shallow copy of an object and clear other fields from the destination
+ */
+function shallowClearAndCopy(src, dst) {
+  dst = dst || {};
+
+  angular.forEach(dst, function(value, key) {
+    delete dst[key];
+  });
+
+  for (var key in src) {
+    if (src.hasOwnProperty(key) && !(key.charAt(0) === '$' && key.charAt(1) === '$')) {
+      dst[key] = src[key];
+    }
+  }
+
+  return dst;
+}
+
+/**
+ * @ngdoc module
+ * @name ngResource
+ * @description
+ *
+ * # ngResource
+ *
+ * The `ngResource` module provides interaction support with RESTful services
+ * via the $resource service.
+ *
+ *
+ * <div doc-module-components="ngResource"></div>
+ *
+ * See {@link ngResource.$resource `$resource`} for usage.
+ */
+
+/**
+ * @ngdoc service
+ * @name $resource
+ * @requires $http
+ * @requires ng.$log
+ * @requires $q
+ * @requires ng.$timeout
+ *
+ * @description
+ * A factory which creates a resource object that lets you interact with
+ * [RESTful](http://en.wikipedia.org/wiki/Representational_State_Transfer) server-side data sources.
+ *
+ * The returned resource object has action methods which provide high-level behaviors without
+ * the need to interact with the low level {@link ng.$http $http} service.
+ *
+ * Requires the {@link ngResource `ngResource`} module to be installed.
+ *
+ * By default, trailing slashes will be stripped from the calculated URLs,
+ * which can pose problems with server backends that do not expect that
+ * behavior.  This can be disabled by configuring the `$resourceProvider` like
+ * this:
+ *
+ * ```js
+     app.config(['$resourceProvider', function($resourceProvider) {
+       // Don't strip trailing slashes from calculated URLs
+       $resourceProvider.defaults.stripTrailingSlashes = false;
+     }]);
+ * ```
+ *
+ * @param {string} url A parameterized URL template with parameters prefixed by `:` as in
+ *   `/user/:username`. If you are using a URL with a port number (e.g.
+ *   `http://example.com:8080/api`), it will be respected.
+ *
+ *   If you are using a url with a suffix, just add the suffix, like this:
+ *   `$resource('http://example.com/resource.json')` or `$resource('http://example.com/:id.json')`
+ *   or even `$resource('http://example.com/resource/:resource_id.:format')`
+ *   If the parameter before the suffix is empty, :resource_id in this case, then the `/.` will be
+ *   collapsed down to a single `.`.  If you need this sequence to appear and not collapse then you
+ *   can escape it with `/\.`.
+ *
+ * @param {Object=} paramDefaults Default values for `url` parameters. These can be overridden in
+ *   `actions` methods. If a parameter value is a function, it will be executed every time
+ *   when a param value needs to be obtained for a request (unless the param was overridden).
+ *
+ *   Each key value in the parameter object is first bound to url template if present and then any
+ *   excess keys are appended to the url search query after the `?`.
+ *
+ *   Given a template `/path/:verb` and parameter `{verb:'greet', salutation:'Hello'}` results in
+ *   URL `/path/greet?salutation=Hello`.
+ *
+ *   If the parameter value is prefixed with `@` then the value for that parameter will be extracted
+ *   from the corresponding property on the `data` object (provided when calling an action method).
+ *   For example, if the `defaultParam` object is `{someParam: '@someProp'}` then the value of
+ *   `someParam` will be `data.someProp`.
+ *
+ * @param {Object.<Object>=} actions Hash with declaration of custom actions that should extend
+ *   the default set of resource actions. The declaration should be created in the format of {@link
+ *   ng.$http#usage $http.config}:
+ *
+ *       {action1: {method:?, params:?, isArray:?, headers:?, ...},
+ *        action2: {method:?, params:?, isArray:?, headers:?, ...},
+ *        ...}
+ *
+ *   Where:
+ *
+ *   - **`action`** – {string} – The name of action. This name becomes the name of the method on
+ *     your resource object.
+ *   - **`method`** – {string} – Case insensitive HTTP method (e.g. `GET`, `POST`, `PUT`,
+ *     `DELETE`, `JSONP`, etc).
+ *   - **`params`** – {Object=} – Optional set of pre-bound parameters for this action. If any of
+ *     the parameter value is a function, it will be executed every time when a param value needs to
+ *     be obtained for a request (unless the param was overridden).
+ *   - **`url`** – {string} – action specific `url` override. The url templating is supported just
+ *     like for the resource-level urls.
+ *   - **`isArray`** – {boolean=} – If true then the returned object for this action is an array,
+ *     see `returns` section.
+ *   - **`transformRequest`** –
+ *     `{function(data, headersGetter)|Array.<function(data, headersGetter)>}` –
+ *     transform function or an array of such functions. The transform function takes the http
+ *     request body and headers and returns its transformed (typically serialized) version.
+ *     By default, transformRequest will contain one function that checks if the request data is
+ *     an object and serializes to using `angular.toJson`. To prevent this behavior, set
+ *     `transformRequest` to an empty array: `transformRequest: []`
+ *   - **`transformResponse`** –
+ *     `{function(data, headersGetter)|Array.<function(data, headersGetter)>}` –
+ *     transform function or an array of such functions. The transform function takes the http
+ *     response body and headers and returns its transformed (typically deserialized) version.
+ *     By default, transformResponse will contain one function that checks if the response looks
+ *     like a JSON string and deserializes it using `angular.fromJson`. To prevent this behavior,
+ *     set `transformResponse` to an empty array: `transformResponse: []`
+ *   - **`cache`** – `{boolean|Cache}` – If true, a default $http cache will be used to cache the
+ *     GET request, otherwise if a cache instance built with
+ *     {@link ng.$cacheFactory $cacheFactory}, this cache will be used for
+ *     caching.
+ *   - **`timeout`** – `{number}` – timeout in milliseconds.<br />
+ *     **Note:** In contrast to {@link ng.$http#usage $http.config}, {@link ng.$q promises} are
+ *     **not** supported in $resource, because the same value would be used for multiple requests.
+ *     If you are looking for a way to cancel requests, you should use the `cancellable` option.
+ *   - **`cancellable`** – `{boolean}` – if set to true, the request made by a "non-instance" call
+ *     will be cancelled (if not already completed) by calling `$cancelRequest()` on the call's
+ *     return value. Calling `$cancelRequest()` for a non-cancellable or an already
+ *     completed/cancelled request will have no effect.<br />
+ *   - **`withCredentials`** - `{boolean}` - whether to set the `withCredentials` flag on the
+ *     XHR object. See
+ *     [requests with credentials](https://developer.mozilla.org/en/http_access_control#section_5)
+ *     for more information.
+ *   - **`responseType`** - `{string}` - see
+ *     [requestType](https://developer.mozilla.org/en-US/docs/DOM/XMLHttpRequest#responseType).
+ *   - **`interceptor`** - `{Object=}` - The interceptor object has two optional methods -
+ *     `response` and `responseError`. Both `response` and `responseError` interceptors get called
+ *     with `http response` object. See {@link ng.$http $http interceptors}.
+ *
+ * @param {Object} options Hash with custom settings that should extend the
+ *   default `$resourceProvider` behavior.  The supported options are:
+ *
+ *   - **`stripTrailingSlashes`** – {boolean} – If true then the trailing
+ *   slashes from any calculated URL will be stripped. (Defaults to true.)
+ *   - **`cancellable`** – {boolean} – If true, the request made by a "non-instance" call will be
+ *   cancelled (if not already completed) by calling `$cancelRequest()` on the call's return value.
+ *   This can be overwritten per action. (Defaults to false.)
+ *
+ * @returns {Object} A resource "class" object with methods for the default set of resource actions
+ *   optionally extended with custom `actions`. The default set contains these actions:
+ *   ```js
+ *   { 'get':    {method:'GET'},
+ *     'save':   {method:'POST'},
+ *     'query':  {method:'GET', isArray:true},
+ *     'remove': {method:'DELETE'},
+ *     'delete': {method:'DELETE'} };
+ *   ```
+ *
+ *   Calling these methods invoke an {@link ng.$http} with the specified http method,
+ *   destination and parameters. When the data is returned from the server then the object is an
+ *   instance of the resource class. The actions `save`, `remove` and `delete` are available on it
+ *   as  methods with the `$` prefix. This allows you to easily perform CRUD operations (create,
+ *   read, update, delete) on server-side data like this:
+ *   ```js
+ *   var User = $resource('/user/:userId', {userId:'@id'});
+ *   var user = User.get({userId:123}, function() {
+ *     user.abc = true;
+ *     user.$save();
+ *   });
+ *   ```
+ *
+ *   It is important to realize that invoking a $resource object method immediately returns an
+ *   empty reference (object or array depending on `isArray`). Once the data is returned from the
+ *   server the existing reference is populated with the actual data. This is a useful trick since
+ *   usually the resource is assigned to a model which is then rendered by the view. Having an empty
+ *   object results in no rendering, once the data arrives from the server then the object is
+ *   populated with the data and the view automatically re-renders itself showing the new data. This
+ *   means that in most cases one never has to write a callback function for the action methods.
+ *
+ *   The action methods on the class object or instance object can be invoked with the following
+ *   parameters:
+ *
+ *   - HTTP GET "class" actions: `Resource.action([parameters], [success], [error])`
+ *   - non-GET "class" actions: `Resource.action([parameters], postData, [success], [error])`
+ *   - non-GET instance actions:  `instance.$action([parameters], [success], [error])`
+ *
+ *
+ *   Success callback is called with (value, responseHeaders) arguments, where the value is
+ *   the populated resource instance or collection object. The error callback is called
+ *   with (httpResponse) argument.
+ *
+ *   Class actions return empty instance (with additional properties below).
+ *   Instance actions return promise of the action.
+ *
+ *   The Resource instances and collections have these additional properties:
+ *
+ *   - `$promise`: the {@link ng.$q promise} of the original server interaction that created this
+ *     instance or collection.
+ *
+ *     On success, the promise is resolved with the same resource instance or collection object,
+ *     updated with data from server. This makes it easy to use in
+ *     {@link ngRoute.$routeProvider resolve section of $routeProvider.when()} to defer view
+ *     rendering until the resource(s) are loaded.
+ *
+ *     On failure, the promise is rejected with the {@link ng.$http http response} object, without
+ *     the `resource` property.
+ *
+ *     If an interceptor object was provided, the promise will instead be resolved with the value
+ *     returned by the interceptor.
+ *
+ *   - `$resolved`: `true` after first server interaction is completed (either with success or
+ *      rejection), `false` before that. Knowing if the Resource has been resolved is useful in
+ *      data-binding.
+ *
+ *   The Resource instances and collections have these additional methods:
+ *
+ *   - `$cancelRequest`: If there is a cancellable, pending request related to the instance or
+ *      collection, calling this method will abort the request.
+ *
+ * @example
+ *
+ * # Credit card resource
+ *
+ * ```js
+     // Define CreditCard class
+     var CreditCard = $resource('/user/:userId/card/:cardId',
+      {userId:123, cardId:'@id'}, {
+       charge: {method:'POST', params:{charge:true}}
+      });
+
+     // We can retrieve a collection from the server
+     var cards = CreditCard.query(function() {
+       // GET: /user/123/card
+       // server returns: [ {id:456, number:'1234', name:'Smith'} ];
+
+       var card = cards[0];
+       // each item is an instance of CreditCard
+       expect(card instanceof CreditCard).toEqual(true);
+       card.name = "J. Smith";
+       // non GET methods are mapped onto the instances
+       card.$save();
+       // POST: /user/123/card/456 {id:456, number:'1234', name:'J. Smith'}
+       // server returns: {id:456, number:'1234', name: 'J. Smith'};
+
+       // our custom method is mapped as well.
+       card.$charge({amount:9.99});
+       // POST: /user/123/card/456?amount=9.99&charge=true {id:456, number:'1234', name:'J. Smith'}
+     });
+
+     // we can create an instance as well
+     var newCard = new CreditCard({number:'0123'});
+     newCard.name = "Mike Smith";
+     newCard.$save();
+     // POST: /user/123/card {number:'0123', name:'Mike Smith'}
+     // server returns: {id:789, number:'0123', name: 'Mike Smith'};
+     expect(newCard.id).toEqual(789);
+ * ```
+ *
+ * The object returned from this function execution is a resource "class" which has "static" method
+ * for each action in the definition.
+ *
+ * Calling these methods invoke `$http` on the `url` template with the given `method`, `params` and
+ * `headers`.
+ *
+ * @example
+ *
+ * # User resource
+ *
+ * When the data is returned from the server then the object is an instance of the resource type and
+ * all of the non-GET methods are available with `$` prefix. This allows you to easily support CRUD
+ * operations (create, read, update, delete) on server-side data.
+
+   ```js
+     var User = $resource('/user/:userId', {userId:'@id'});
+     User.get({userId:123}, function(user) {
+       user.abc = true;
+       user.$save();
+     });
+   ```
+ *
+ * It's worth noting that the success callback for `get`, `query` and other methods gets passed
+ * in the response that came from the server as well as $http header getter function, so one
+ * could rewrite the above example and get access to http headers as:
+ *
+   ```js
+     var User = $resource('/user/:userId', {userId:'@id'});
+     User.get({userId:123}, function(user, getResponseHeaders){
+       user.abc = true;
+       user.$save(function(user, putResponseHeaders) {
+         //user => saved user object
+         //putResponseHeaders => $http header getter
+       });
+     });
+   ```
+ *
+ * You can also access the raw `$http` promise via the `$promise` property on the object returned
+ *
+   ```
+     var User = $resource('/user/:userId', {userId:'@id'});
+     User.get({userId:123})
+         .$promise.then(function(user) {
+           $scope.user = user;
+         });
+   ```
+ *
+ * @example
+ *
+ * # Creating a custom 'PUT' request
+ *
+ * In this example we create a custom method on our resource to make a PUT request
+ * ```js
+ *    var app = angular.module('app', ['ngResource', 'ngRoute']);
+ *
+ *    // Some APIs expect a PUT request in the format URL/object/ID
+ *    // Here we are creating an 'update' method
+ *    app.factory('Notes', ['$resource', function($resource) {
+ *    return $resource('/notes/:id', null,
+ *        {
+ *            'update': { method:'PUT' }
+ *        });
+ *    }]);
+ *
+ *    // In our controller we get the ID from the URL using ngRoute and $routeParams
+ *    // We pass in $routeParams and our Notes factory along with $scope
+ *    app.controller('NotesCtrl', ['$scope', '$routeParams', 'Notes',
+                                      function($scope, $routeParams, Notes) {
+ *    // First get a note object from the factory
+ *    var note = Notes.get({ id:$routeParams.id });
+ *    $id = note.id;
+ *
+ *    // Now call update passing in the ID first then the object you are updating
+ *    Notes.update({ id:$id }, note);
+ *
+ *    // This will PUT /notes/ID with the note object in the request payload
+ *    }]);
+ * ```
+ *
+ * @example
+ *
+ * # Cancelling requests
+ *
+ * If an action's configuration specifies that it is cancellable, you can cancel the request related
+ * to an instance or collection (as long as it is a result of a "non-instance" call):
+ *
+   ```js
+     // ...defining the `Hotel` resource...
+     var Hotel = $resource('/api/hotel/:id', {id: '@id'}, {
+       // Let's make the `query()` method cancellable
+       query: {method: 'get', isArray: true, cancellable: true}
+     });
+
+     // ...somewhere in the PlanVacationController...
+     ...
+     this.onDestinationChanged = function onDestinationChanged(destination) {
+       // We don't care about any pending request for hotels
+       // in a different destination any more
+       this.availableHotels.$cancelRequest();
+
+       // Let's query for hotels in '<destination>'
+       // (calls: /api/hotel?location=<destination>)
+       this.availableHotels = Hotel.query({location: destination});
+     };
+   ```
+ *
+ */
+angular.module('ngResource', ['ng']).
+  provider('$resource', function() {
+    var PROTOCOL_AND_DOMAIN_REGEX = /^https?:\/\/[^\/]*/;
+    var provider = this;
+
+    this.defaults = {
+      // Strip slashes by default
+      stripTrailingSlashes: true,
+
+      // Default actions configuration
+      actions: {
+        'get': {method: 'GET'},
+        'save': {method: 'POST'},
+        'query': {method: 'GET', isArray: true},
+        'remove': {method: 'DELETE'},
+        'delete': {method: 'DELETE'}
+      }
+    };
+
+    this.$get = ['$http', '$log', '$q', '$timeout', function($http, $log, $q, $timeout) {
+
+      var noop = angular.noop,
+        forEach = angular.forEach,
+        extend = angular.extend,
+        copy = angular.copy,
+        isFunction = angular.isFunction;
+
+      /**
+       * We need our custom method because encodeURIComponent is too aggressive and doesn't follow
+       * http://www.ietf.org/rfc/rfc3986.txt with regards to the character set
+       * (pchar) allowed in path segments:
+       *    segment       = *pchar
+       *    pchar         = unreserved / pct-encoded / sub-delims / ":" / "@"
+       *    pct-encoded   = "%" HEXDIG HEXDIG
+       *    unreserved    = ALPHA / DIGIT / "-" / "." / "_" / "~"
+       *    sub-delims    = "!" / "$" / "&" / "'" / "(" / ")"
+       *                     / "*" / "+" / "," / ";" / "="
+       */
+      function encodeUriSegment(val) {
+        return encodeUriQuery(val, true).
+          replace(/%26/gi, '&').
+          replace(/%3D/gi, '=').
+          replace(/%2B/gi, '+');
+      }
+
+
+      /**
+       * This method is intended for encoding *key* or *value* parts of query component. We need a
+       * custom method because encodeURIComponent is too aggressive and encodes stuff that doesn't
+       * have to be encoded per http://tools.ietf.org/html/rfc3986:
+       *    query       = *( pchar / "/" / "?" )
+       *    pchar         = unreserved / pct-encoded / sub-delims / ":" / "@"
+       *    unreserved    = ALPHA / DIGIT / "-" / "." / "_" / "~"
+       *    pct-encoded   = "%" HEXDIG HEXDIG
+       *    sub-delims    = "!" / "$" / "&" / "'" / "(" / ")"
+       *                     / "*" / "+" / "," / ";" / "="
+       */
+      function encodeUriQuery(val, pctEncodeSpaces) {
+        return encodeURIComponent(val).
+          replace(/%40/gi, '@').
+          replace(/%3A/gi, ':').
+          replace(/%24/g, '$').
+          replace(/%2C/gi, ',').
+          replace(/%20/g, (pctEncodeSpaces ? '%20' : '+'));
+      }
+
+      function Route(template, defaults) {
+        this.template = template;
+        this.defaults = extend({}, provider.defaults, defaults);
+        this.urlParams = {};
+      }
+
+      Route.prototype = {
+        setUrlParams: function(config, params, actionUrl) {
+          var self = this,
+            url = actionUrl || self.template,
+            val,
+            encodedVal,
+            protocolAndDomain = '';
+
+          var urlParams = self.urlParams = {};
+          forEach(url.split(/\W/), function(param) {
+            if (param === 'hasOwnProperty') {
+              throw $resourceMinErr('badname', "hasOwnProperty is not a valid parameter name.");
+            }
+            if (!(new RegExp("^\\d+$").test(param)) && param &&
+              (new RegExp("(^|[^\\\\]):" + param + "(\\W|$)").test(url))) {
+              urlParams[param] = {
+                isQueryParamValue: (new RegExp("\\?.*=:" + param + "(?:\\W|$)")).test(url)
+              };
+            }
+          });
+          url = url.replace(/\\:/g, ':');
+          url = url.replace(PROTOCOL_AND_DOMAIN_REGEX, function(match) {
+            protocolAndDomain = match;
+            return '';
+          });
+
+          params = params || {};
+          forEach(self.urlParams, function(paramInfo, urlParam) {
+            val = params.hasOwnProperty(urlParam) ? params[urlParam] : self.defaults[urlParam];
+            if (angular.isDefined(val) && val !== null) {
+              if (paramInfo.isQueryParamValue) {
+                encodedVal = encodeUriQuery(val, true);
+              } else {
+                encodedVal = encodeUriSegment(val);
+              }
+              url = url.replace(new RegExp(":" + urlParam + "(\\W|$)", "g"), function(match, p1) {
+                return encodedVal + p1;
+              });
+            } else {
+              url = url.replace(new RegExp("(\/?):" + urlParam + "(\\W|$)", "g"), function(match,
+                  leadingSlashes, tail) {
+                if (tail.charAt(0) == '/') {
+                  return tail;
+                } else {
+                  return leadingSlashes + tail;
+                }
+              });
+            }
+          });
+
+          // strip trailing slashes and set the url (unless this behavior is specifically disabled)
+          if (self.defaults.stripTrailingSlashes) {
+            url = url.replace(/\/+$/, '') || '/';
+          }
+
+          // then replace collapse `/.` if found in the last URL path segment before the query
+          // E.g. `http://url.com/id./format?q=x` becomes `http://url.com/id.format?q=x`
+          url = url.replace(/\/\.(?=\w+($|\?))/, '.');
+          // replace escaped `/\.` with `/.`
+          config.url = protocolAndDomain + url.replace(/\/\\\./, '/.');
+
+
+          // set params - delegate param encoding to $http
+          forEach(params, function(value, key) {
+            if (!self.urlParams[key]) {
+              config.params = config.params || {};
+              config.params[key] = value;
+            }
+          });
+        }
+      };
+
+
+      function resourceFactory(url, paramDefaults, actions, options) {
+        var route = new Route(url, options);
+
+        actions = extend({}, provider.defaults.actions, actions);
+
+        function extractParams(data, actionParams) {
+          var ids = {};
+          actionParams = extend({}, paramDefaults, actionParams);
+          forEach(actionParams, function(value, key) {
+            if (isFunction(value)) { value = value(); }
+            ids[key] = value && value.charAt && value.charAt(0) == '@' ?
+              lookupDottedPath(data, value.substr(1)) : value;
+          });
+          return ids;
+        }
+
+        function defaultResponseInterceptor(response) {
+          return response.resource;
+        }
+
+        function Resource(value) {
+          shallowClearAndCopy(value || {}, this);
+        }
+
+        Resource.prototype.toJSON = function() {
+          var data = extend({}, this);
+          delete data.$promise;
+          delete data.$resolved;
+          return data;
+        };
+
+        forEach(actions, function(action, name) {
+          var hasBody = /^(POST|PUT|PATCH)$/i.test(action.method);
+          var numericTimeout = action.timeout;
+          var cancellable = angular.isDefined(action.cancellable) ? action.cancellable :
+              (options && angular.isDefined(options.cancellable)) ? options.cancellable :
+              provider.defaults.cancellable;
+
+          if (numericTimeout && !angular.isNumber(numericTimeout)) {
+            $log.debug('ngResource:\n' +
+                       '  Only numeric values are allowed as `timeout`.\n' +
+                       '  Promises are not supported in $resource, because the same value would ' +
+                       'be used for multiple requests. If you are looking for a way to cancel ' +
+                       'requests, you should use the `cancellable` option.');
+            delete action.timeout;
+            numericTimeout = null;
+          }
+
+          Resource[name] = function(a1, a2, a3, a4) {
+            var params = {}, data, success, error;
+
+            /* jshint -W086 */ /* (purposefully fall through case statements) */
+            switch (arguments.length) {
+              case 4:
+                error = a4;
+                success = a3;
+              //fallthrough
+              case 3:
+              case 2:
+                if (isFunction(a2)) {
+                  if (isFunction(a1)) {
+                    success = a1;
+                    error = a2;
+                    break;
+                  }
+
+                  success = a2;
+                  error = a3;
+                  //fallthrough
+                } else {
+                  params = a1;
+                  data = a2;
+                  success = a3;
+                  break;
+                }
+              case 1:
+                if (isFunction(a1)) success = a1;
+                else if (hasBody) data = a1;
+                else params = a1;
+                break;
+              case 0: break;
+              default:
+                throw $resourceMinErr('badargs',
+                  "Expected up to 4 arguments [params, data, success, error], got {0} arguments",
+                  arguments.length);
+            }
+            /* jshint +W086 */ /* (purposefully fall through case statements) */
+
+            var isInstanceCall = this instanceof Resource;
+            var value = isInstanceCall ? data : (action.isArray ? [] : new Resource(data));
+            var httpConfig = {};
+            var responseInterceptor = action.interceptor && action.interceptor.response ||
+              defaultResponseInterceptor;
+            var responseErrorInterceptor = action.interceptor && action.interceptor.responseError ||
+              undefined;
+            var timeoutDeferred;
+            var numericTimeoutPromise;
+
+            forEach(action, function(value, key) {
+              switch (key) {
+                default:
+                  httpConfig[key] = copy(value);
+                  break;
+                case 'params':
+                case 'isArray':
+                case 'interceptor':
+                case 'cancellable':
+                  break;
+              }
+            });
+
+            if (!isInstanceCall && cancellable) {
+              timeoutDeferred = $q.defer();
+              httpConfig.timeout = timeoutDeferred.promise;
+
+              if (numericTimeout) {
+                numericTimeoutPromise = $timeout(timeoutDeferred.resolve, numericTimeout);
+              }
+            }
+
+            if (hasBody) httpConfig.data = data;
+            route.setUrlParams(httpConfig,
+              extend({}, extractParams(data, action.params || {}), params),
+              action.url);
+
+            var promise = $http(httpConfig).then(function(response) {
+              var data = response.data;
+
+              if (data) {
+                // Need to convert action.isArray to boolean in case it is undefined
+                // jshint -W018
+                if (angular.isArray(data) !== (!!action.isArray)) {
+                  throw $resourceMinErr('badcfg',
+                      'Error in resource configuration for action `{0}`. Expected response to ' +
+                      'contain an {1} but got an {2} (Request: {3} {4})', name, action.isArray ? 'array' : 'object',
+                    angular.isArray(data) ? 'array' : 'object', httpConfig.method, httpConfig.url);
+                }
+                // jshint +W018
+                if (action.isArray) {
+                  value.length = 0;
+                  forEach(data, function(item) {
+                    if (typeof item === "object") {
+                      value.push(new Resource(item));
+                    } else {
+                      // Valid JSON values may be string literals, and these should not be converted
+                      // into objects. These items will not have access to the Resource prototype
+                      // methods, but unfortunately there
+                      value.push(item);
+                    }
+                  });
+                } else {
+                  var promise = value.$promise;     // Save the promise
+                  shallowClearAndCopy(data, value);
+                  value.$promise = promise;         // Restore the promise
+                }
+              }
+              response.resource = value;
+
+              return response;
+            }, function(response) {
+              (error || noop)(response);
+              return $q.reject(response);
+            });
+
+            promise.finally(function() {
+              value.$resolved = true;
+              if (!isInstanceCall && cancellable) {
+                value.$cancelRequest = angular.noop;
+                $timeout.cancel(numericTimeoutPromise);
+                timeoutDeferred = numericTimeoutPromise = httpConfig.timeout = null;
+              }
+            });
+
+            promise = promise.then(
+              function(response) {
+                var value = responseInterceptor(response);
+                (success || noop)(value, response.headers);
+                return value;
+              },
+              responseErrorInterceptor);
+
+            if (!isInstanceCall) {
+              // we are creating instance / collection
+              // - set the initial promise
+              // - return the instance / collection
+              value.$promise = promise;
+              value.$resolved = false;
+              if (cancellable) value.$cancelRequest = timeoutDeferred.resolve;
+
+              return value;
+            }
+
+            // instance call
+            return promise;
+          };
+
+
+          Resource.prototype['$' + name] = function(params, success, error) {
+            if (isFunction(params)) {
+              error = success; success = params; params = {};
+            }
+            var result = Resource[name].call(this, params, this, success, error);
+            return result.$promise || result;
+          };
+        });
+
+        Resource.bind = function(additionalParamDefaults) {
+          return resourceFactory(url, extend({}, paramDefaults, additionalParamDefaults), actions);
+        };
+
+        return Resource;
+      }
+
+      return resourceFactory;
+    }];
+  });
+
+
+})(window, window.angular);
+
+var app = angular.module('app',['ngRoute','ngResource','templates','appControllers','appServices','appDirectives']);
 
 app.config(['$routeProvider', '$locationProvider', 
  function($routeProvider,$locationProvider) {
@@ -30657,9 +31451,6 @@ app.config(['$routeProvider', '$locationProvider',
 		controllerAs: 'login',
 		access: { requiredLogin: false }
 	})
-	/*.when('/users', {
-		templateUrl: 'usersList.html'
-	})*/
 	.when('/users/:userId', {
 		templateUrl: 'usersEdit.html',
 		access: { requiredLogin: true }
@@ -30672,6 +31463,14 @@ app.config(['$routeProvider', '$locationProvider',
 	})
 	.when('/products/:productsId', {
 		templateUrl: 'productsEdit.html',
+		controller: 'productsEditCtrl',
+		controllerAs: 'productsEdit',
+		access: { requiredLogin: true }
+	})
+	.when('/products/new', {
+		templateUrl: 'productsEdit.html',
+		controller: 'productsEditCtrl',
+		controllerAs: 'productsEdit',
 		access: { requiredLogin: true }
 	})
 	.otherwise({
@@ -30685,9 +31484,9 @@ app.config(function ($httpProvider) {
     $httpProvider.interceptors.push('tokenService');
 });
 
-app.run(function($rootScope, $location, authService) {
+app.run(function($rootScope, $location, $window, authService) {
     $rootScope.$on("$routeChangeStart", function(event, nextRoute, currentRoute) {
-        if (nextRoute.access && nextRoute.access.requiredLogin && !authService.isLogged) {
+        if (nextRoute.access && nextRoute.access.requiredLogin && !authService.isLogged && !$window.sessionStorage.token) {
             $location.path("/");
         }
     });
@@ -30696,17 +31495,17 @@ app.run(function($rootScope, $location, authService) {
 var appControllers = angular.module('appControllers', []);
 var appServices = angular.module('appServices', []);
 var appDirectives = angular.module('appDirectives', []);
-appControllers.controller('AdminUserCtrl', ['$scope', '$location', '$window', 'UserService', 'AuthenticationService',
-    function AdminUserCtrl($scope, $location, $window, UserService, AuthenticationService) {
+appControllers.controller('authCtrl', ['$scope', '$location', '$window', 'userService', 'authService',
+    function authCtrl($scope, $location, $window, userService, authService) {
  
         //Admin User Controller (login, logout)
         $scope.logIn = function logIn(username, password) {
             if (username !== undefined && password !== undefined) {
  
-                UserService.logIn(username, password).success(function(data) {
-                    AuthenticationService.isLogged = true;
+                userService.logIn(username, password).success(function(data) {
+                    authService.isLogged = true;
                     $window.sessionStorage.token = data.token;
-                    $location.path("/admin");
+                    $location.path("/products");
                 }).error(function(status, data) {
                     console.log(status);
                     console.log(data);
@@ -30715,19 +31514,34 @@ appControllers.controller('AdminUserCtrl', ['$scope', '$location', '$window', 'U
         }
  
         $scope.logout = function logout() {
-            if (AuthenticationService.isLogged) {
-                AuthenticationService.isLogged = false;
+            if (authService.isLogged) {
+                authService.isLogged = false;
                 delete $window.sessionStorage.token;
                 $location.path("/");
             }
         }
     }
 ]);
-appControllers.controller('loginCtrl', ['$scope', 'loginFormService', function($scope, loginFormService) {
+appControllers.controller('loginCtrl', ['$scope', 'loginFormService','userService','authService','$window','$location', function($scope, loginFormService, userService,authService,$window,$location) {
     loginFormService();
-}]);
-angular.module("app").controller('productsListCtrl', ['$scope', function($scope) {
-    $scope.products = [{"name":"z"},{"name":"x"},{"name":"c"},{"name":"v"},{"name":"b"}]
+    $scope.logIn = function logIn(username, password) {
+        if (username !== undefined && password !== undefined) {
+			userService.logIn(username, password, successAction, errorAction);
+        }
+    }
+
+    var successAction = function(data){
+    	if(data && data.token){
+    		authService.isLogged = true;
+	        $window.sessionStorage.token = data.token;
+	        $location.path("/products");
+    	}
+    }
+
+    var errorAction = function(status, data){
+    	console.log(status);
+        console.log(data);
+    }
 }]);
 appServices.factory('authService', function() {
     var auth = {
@@ -30738,7 +31552,7 @@ appServices.factory('authService', function() {
 });
 appServices.factory('loginFormService', ['$window', function() {
 	return function(){
-		$('.form').find('input, textarea').on('keyup blur focus', function (e) {
+		$('.login-form').find('input, textarea').on('keyup blur focus', function (e) {
 
 		var $this = $(this),
 		  label = $this.prev('label');
@@ -30776,19 +31590,19 @@ appServices.factory('loginFormService', ['$window', function() {
 
 		target = $(this).attr('href');
 
-		$('.tab-content > div').not(target).hide();
+		$('.login-tab-content > div').not(target).hide();
 
 		$(target).fadeIn(600);
 
 		});
 	}
 }]);
-appServices.factory('tokenService', function ($q, $window, authService) {
+appServices.factory('tokenService', function ($q, $window, authService, $location) {
     return {
         request: function (config) {
             config.headers = config.headers || {};
             if ($window.sessionStorage.token) {
-                config.headers.Authorization = 'Bearer ' + $window.sessionStorage.token;
+                config.headers["Auth-token"] = $window.sessionStorage.token;
             }
             return config;
         },
@@ -30799,17 +31613,17 @@ appServices.factory('tokenService', function ($q, $window, authService) {
  
         /* Set Authentication.isAuthenticated to true if 200 received */
         response: function (response) {
-            if (response != null && response.status == 200 && $window.sessionStorage.token && !AuthenticationService.isAuthenticated) {
-                AuthenticationService.isAuthenticated = true;
+            if (response != null && response.status == 200 && $window.sessionStorage.token && !authService.isAuthenticated) {
+                authService.isAuthenticated = true;
             }
             return response || $q.when(response);
         },
  
         /* Revoke client authentication if 401 is received */
         responseError: function(rejection) {
-            if (rejection != null && rejection.status === 401 && ($window.sessionStorage.token || AuthenticationService.isAuthenticated)) {
+            if (rejection != null && rejection.status === 401 && ($window.sessionStorage.token || authService.isAuthenticated)) {
                 delete $window.sessionStorage.token;
-                AuthenticationService.isAuthenticated = false;
+                authService.isAuthenticated = false;
                 $location.path("/admin/login");
             }
  
@@ -30817,20 +31631,66 @@ appServices.factory('tokenService', function ($q, $window, authService) {
         }
     };
 });
-appServices.factory('userService', function($http) {
+appServices.factory('userService', function($resource) {
     return {
-        logIn: function(username, password) {
-            return $http.post(options.api.base_url + '/login', {username: username, password: password});
+        logIn: function(email, password, succesFunc, errorFunc) {
+            return $resource("api/login").save({email:email, password:password}, function(data){ succesFunc(data);}, function(status,data){ errorFunc(status,data);});
         },
- 
         logOut: function() {
  
         }
     }
 });
+angular.module("app").controller('productsEditCtrl', ['$scope','$location','$resource', function($scope,$location,$resource) {
+
+
+	$scope.save = function(){
+		return $resource("/api/products").save($scope.entity, function(data){ $location.path("/products");}, function(status,data){ console.log(status); console.log(data)});
+	};
+
+	$scope.cancel = function() {
+		$location.path("/products")
+	};
+}]);
+angular.module("app").controller('productsListCtrl', ['$scope','$resource','$location','$route', function($scope, $resource, $location, $route) {
+    
+    $scope.newProducts = $resource("/api/products").get({
+
+    },function(response){
+    	if(response.content.length){
+    		$scope.products = response.content;
+    	}
+    }, function(status, data){
+
+    });
+
+	$scope.delete = function(uuid){
+		if(uuid){
+			$resource("/api/products/:productUuid").delete({productUuid: uuid}, function(){
+				$route.reload();
+			}, function() {
+
+			});
+		}
+	};
+
+	$scope.createProduct = function(){
+		$location.path("/products/new");
+	}
+
+	$scope.deleteAll = function(){
+		if($scope.products){
+			$resource("/api/products/:productUuid").delete({productUuid: "DELETEALL"}, function(){
+				$route.reload();
+			}, function() {
+
+			});
+		}
+	}
+}]);
 angular.module("templates", []).run(["$templateCache", function($templateCache) {$templateCache.put("header.html","<nav class=\"navbar navbar-inverse navbar-fixed-top\">\r\n  <div class=\"col-md-12\">\r\n    <div class=\"navbar-header\">\r\n      <button type=\"button\" class=\"navbar-toggle collapsed\" data-toggle=\"collapse\" data-target=\"#navbar\" aria-expanded=\"false\" aria-controls=\"navbar\">\r\n        <span class=\"sr-only\">Toggle navigation</span>\r\n        <span class=\"icon-bar\"></span>\r\n        <span class=\"icon-bar\"></span>\r\n        <span class=\"icon-bar\"></span>\r\n      </button>\r\n      <a class=\"navbar-brand\">AngularJS</a>\r\n    </div>\r\n    <div id=\"navbar\" class=\"collapse navbar-collapse\">\r\n      <ul class=\"nav navbar-nav\">\r\n        <li class=\"active\"><a href=\"/products\">Products</a></li>\r\n        <!--<li><a href=\"#about\">Users</a></li>-->\r\n      </ul>\r\n    <ul class=\"nav navbar-nav navbar-right\">\r\n  	<p class=\"navbar-text\">FirstName LastName</p>\r\n  	<li><a>Settings</a></li>\r\n  	<li><a>Log Out</a></li>\r\n    </ul>\r\n    </div>\r\n  </div>\r\n</nav>");
-$templateCache.put("login.html","<div class=\"form\">\r\n      \r\n      <ul class=\"tab-group\">\r\n        <li class=\"tab active\"><a href=\"#login\">Log In</a></li>\r\n        <li class=\"tab\"><a href=\"#signup\">Sign Up</a></li>\r\n      </ul>\r\n      \r\n      <div class=\"tab-content\">\r\n        <div id=\"login\">   \r\n          <h1>Welcome Back!</h1>\r\n          \r\n          <form action=\"/\" method=\"post\">\r\n          \r\n            <div class=\"field-wrap\">\r\n            <label>\r\n              Email Address<span class=\"req\">*</span>\r\n            </label>\r\n            <input type=\"email\"required autocomplete=\"off\"/>\r\n          </div>\r\n          \r\n          <div class=\"field-wrap\">\r\n            <label>\r\n              Password<span class=\"req\">*</span>\r\n            </label>\r\n            <input type=\"password\"required autocomplete=\"off\"/>\r\n          </div>\r\n          \r\n          <button class=\"button button-block\"/>Log In</button>\r\n          \r\n          </form>\r\n\r\n        </div>\r\n        <div id=\"signup\">   \r\n          <h1>Sign Up for Free</h1>\r\n          \r\n          <form action=\"/\" method=\"post\">\r\n          \r\n          <div class=\"top-row\">\r\n            <div class=\"field-wrap\">\r\n              <label>\r\n                First Name<span class=\"req\">*</span>\r\n              </label>\r\n              <input type=\"text\" required autocomplete=\"off\" />\r\n            </div>\r\n        \r\n            <div class=\"field-wrap\">\r\n              <label>\r\n                Last Name<span class=\"req\">*</span>\r\n              </label>\r\n              <input type=\"text\"required autocomplete=\"off\"/>\r\n            </div>\r\n          </div>\r\n\r\n          <div class=\"field-wrap\">\r\n            <label>\r\n              Phone Number<span class=\"req\">*</span>\r\n            </label>\r\n            <input type=\"text\"required autocomplete=\"off\"/>\r\n          </div>\r\n\r\n          <div class=\"field-wrap\">\r\n            <label>\r\n              Email Address<span class=\"req\">*</span>\r\n            </label>\r\n            <input type=\"email\"required autocomplete=\"off\"/>\r\n          </div>\r\n          \r\n          <div class=\"field-wrap\">\r\n            <label>\r\n              Set A Password<span class=\"req\">*</span>\r\n            </label>\r\n            <input type=\"password\"required autocomplete=\"off\"/>\r\n          </div>\r\n          \r\n          <button type=\"submit\" class=\"button button-block\"/>Get Started</button>\r\n          \r\n          </form>\r\n\r\n        </div>\r\n        \r\n      </div><!-- tab-content -->\r\n      \r\n</div>");
-$templateCache.put("productsEdit.html","");
-$templateCache.put("productsList.html","\r\n<div class=\"main-cointainer\">\r\n	<div ng-include=\"\'header.html\'\"></div>\r\n	<div class=\"container\">\r\n		<table class=\"table table-striped\" style=\"background-color: lightblue\">\r\n		  <thead>\r\n		    <tr>\r\n		      <th>#</th>\r\n		      <th>First Name</th>\r\n		      <th>Last Name</th>\r\n		      <th>Username</th>\r\n		    </tr>\r\n		  </thead>\r\n		  <tbody>\r\n		    <tr ng-repeat=\"product in products\">\r\n		      <th scope=\"row\">#</th>\r\n		      <td>{{ product.name }}</td>\r\n		      <td>{{ product.name + product.name }}</td>\r\n		      <td>{{ product.name + product.name + product.name }}</td>\r\n		    </tr>\r\n		  </tbody>\r\n		</table>\r\n	</div>\r\n</div>");
-$templateCache.put("usersEdit.html","");
+$templateCache.put("login.html","<div class=\"login-form\">\r\n      \r\n      <ul class=\"login-tab-group\">\r\n        <li class=\"tab active\"><a href=\"#login\">Log In</a></li>\r\n        <li class=\"tab\"><a href=\"#signup\">Sign Up</a></li>\r\n      </ul>\r\n      \r\n      <div class=\"login-tab-content\">\r\n        <div id=\"login\">   \r\n          <h1 class=\"login-h1\">Welcome Back!</h1>\r\n          \r\n          <form>\r\n          \r\n            <div class=\"login-field-wrap\">\r\n            <label class=\"login-label\">\r\n              Email Address<span class=\"req\">*</span>\r\n            </label>\r\n            <input class=\"login-input\" type=\"email\" required autocomplete=\"off\" ng-model=\"email\"/>\r\n          </div>\r\n          \r\n          <div class=\"login-field-wrap\">\r\n            <label class=\"login-label\">\r\n              Password<span class=\"req\">*</span>\r\n            </label>\r\n            <input class=\"login-input\" type=\"password\" required autocomplete=\"off\" ng-model=\"password\"/>\r\n          </div>\r\n          \r\n          <button class=\"login-button login-button-block\" ng-click=\"logIn(email,password)\"/>Log In</button>\r\n          \r\n          </form>\r\n\r\n        </div>\r\n        <div id=\"signup\">   \r\n          <h1 class=\"login-h1\">Sign Up for Free</h1>\r\n          \r\n          <form>\r\n          \r\n          <div class=\"login-top-row\">\r\n            <div class=\"login-field-wrap\">\r\n              <label class=\"login-label\">\r\n                First Name<span class=\"req\">*</span>\r\n              </label>\r\n              <input class=\"login-input\" type=\"text\" required autocomplete=\"off\" />\r\n            </div>\r\n        \r\n            <div class=\"login-field-wrap\">\r\n              <label class=\"login-label\">\r\n                Last Name<span class=\"req\">*</span>\r\n              </label>\r\n              <input class=\"login-input\" type=\"text\"required autocomplete=\"off\"/>\r\n            </div>\r\n          </div>\r\n\r\n          <div class=\"login-field-wrap\">\r\n            <label class=\"login-label\">\r\n              Phone Number<span class=\"req\">*</span>\r\n            </label>\r\n            <input class=\"login-input\" type=\"text\"required autocomplete=\"off\"/>\r\n          </div>\r\n\r\n          <div class=\"login-field-wrap\">\r\n            <label class=\"login-label\">\r\n              Email Address<span class=\"req\">*</span>\r\n            </label>\r\n            <input class=\"login-input\" type=\"email\"required autocomplete=\"off\"/>\r\n          </div>\r\n          \r\n          <div class=\"login-field-wrap\">\r\n            <label class=\"login-label\">\r\n              Set A Password<span class=\"req\">*</span>\r\n            </label>\r\n            <input class=\"login-input\" type=\"password\"required autocomplete=\"off\"/>\r\n          </div>\r\n          \r\n          <button type=\"submit\" class=\"login-button login-button-block\"/>Get Started</button>\r\n          \r\n          </form>\r\n\r\n        </div>\r\n        \r\n      </div><!-- tab-content -->\r\n      \r\n</div>");
+$templateCache.put("productsEdit.html","<div class=\"main-cointainer\">\r\n	<div ng-include=\"\'header.html\'\"></div>\r\n	<div class=\"container\">\r\n		<div class=\"row\">\r\n			<h1 class=\"col-md-offset-5\"> Edit Product </h1>\r\n			<div class=\"col-md-6 col-md-offset-3\">\r\n				<form class=\"form-horizontal\">\r\n				  <div class=\"form-group <!-- col-md-11 -->\">\r\n				    <label for=\"name\" class=\"control-label col-md-3\">Name</label>\r\n				    <div class=\"col-md-9\">\r\n				    	<input type=\"text\" class=\"form-control\" id=\"name\" placeholder=\"Nikita\" ng-model=\"entity.name\">\r\n				    </div>\r\n				  </div> \r\n				  <div class=\"form-group <!-- col-md-11 -->\">\r\n				    <label for=\"amount\" class=\"control-label col-md-3\">Amount</label>\r\n				    <div class=\"col-md-9\">\r\n				    	<input type=\"text\" class=\"form-control\" id=\"amount\" placeholder=\"Belonovych\" ng-model=\"entity.amount\">\r\n				    </div>\r\n				  </div> \r\n				  <div class=\"form-group <!-- col-md-11 -->\">\r\n				    <label for=\"price\" class=\"control-label col-md-3\">Price</label>\r\n				    <div class=\"col-md-9\">\r\n					  <input type=\"number\" class=\"form-control\" id=\"price\" step=\'0.01\' value=\'0.00\' placeholder=\'0.00\' min=\'0\' ng-model=\"entity.price\">\r\n					  <!--$(\"#price\").on(\"change\", function(){\r\n					   $(this).val(parseFloat($(this).val()).toFixed(2));\r\n					});-->\r\n					</div>\r\n				  </div> \r\n				  <div class=\"form-group <!-- col-md-11 -->\">\r\n				    <label for=\"price\" class=\"control-label col-md-3\">Description</label>\r\n				    <div class=\"col-md-9\">\r\n				    	<textarea rows=\"5\" class=\"form-control\" id=\"description\" placeholder=\"Here you can describe you product...\" ng-model=\"entity.description\"></textarea>\r\n				    </div>\r\n				  </div>\r\n				  <div class=\"col-md-3 col-md-offset-3\">\r\n				  	<button type=\"button\" class=\"btn submit-button btn-primary\" ng-click=\"save()\">Save</button>\r\n				  </div>\r\n				  <div class=\"col-md-3\">\r\n				  	<button type=\"button\" class=\"btn submit-button btn-primary\" ng-click=\"cancel()\">Cancel</button>\r\n				  </div>\r\n				</form>\r\n			</div>\r\n		</div>\r\n	</div>\r\n</div>");
+$templateCache.put("productsList.html","<div class=\"main-cointainer\">\r\n	<div ng-include=\"\'header.html\'\"></div>\r\n	<div class=\"container\">\r\n		<div class=\"row\">\r\n			<div class=\"table-top-buttons\">\r\n				<div class=\"col-md-2\">\r\n					<button type=\"button\" class=\"btn submit-button btn-primary\" ng-click=\"createProduct()\">Create New</button>\r\n				</div>\r\n				<div class=\"col-md-2\">\r\n					<button type=\"button\" class=\"btn submit-button btn-primary\" style=\"display: none\" id=\"deleteAllButton\" ng-click=\"deleteAll()\">Delete all</button>\r\n				</div>\r\n			</div>\r\n		</div>\r\n		<div class=\"row\">\r\n			<table class=\"table table-striped\" style=\"background-color: lightblue\">\r\n			  <thead>\r\n			    <tr>\r\n			      <th><div>\r\n			            <input id=\"allCheckbox\" class=\"checkbox-custom\" name=\"allCheckbox\" type=\"checkbox\">\r\n			            <label for=\"allCheckbox\"class=\"checkbox-custom-label\"></label>    \r\n			        </div></th>\r\n			      <th>First Name</th>\r\n			      <th>Last Name</th>\r\n			      <th>Username</th>\r\n			    </tr>\r\n			  </thead>\r\n			  <tbody>\r\n			    <tr ng-repeat=\"product in products\">\r\n			      <td>\r\n			      	<div>\r\n			            <input id=\"checkbox{{product.id}}\" class=\"checkbox-custom\" name=\"checkbox{{product.id}}\" type=\"checkbox\">\r\n			            <label for=\"checkbox{{product.id}}\"class=\"checkbox-custom-label\"></label>    \r\n			        </div>\r\n			      </td>\r\n			      <td>{{ product.name }}</td>\r\n			      <td>{{ product.price }}</td>\r\n			      <td>{{ product.description }}</td>\r\n			      <td><a href=\"/products/{{product.uuid}}\"><span class=\"glyphicon glyphicon-pencil\"></span></a></td>\r\n			      <td><button ng-click=\'delete(product.uuid)\' class=\"list-delete-button\"><span class=\"glyphicon glyphicon-trash\"></span></button></td>\r\n			    </tr>\r\n			  </tbody>\r\n			</table>\r\n		</div>\r\n	</div>\r\n</div>\r\n\r\n<!-- for checkbox\r\n$(\"#allCheckbox\").on(\"change\", function(elem){\r\n	var elements = $(\"table td input[type=checkbox]\");\r\n	for (var i = elements.length; i--;) {\r\n	    elements[i].checked = this.checked;\r\n	}\r\n	if(this.checked){\r\n		$(\"#deleteAllButton\").css({display:\"block\"});\r\n	} else {\r\n		$(\"#deleteAllButton\").css({display:\"none\"});\r\n	}\r\n});\r\n -->");
+$templateCache.put("usersEdit.html","<div class=\"main-cointainer\">\r\n	<div ng-include=\"\'header.html\'\"></div>\r\n	<div class=\"container\">\r\n		<div class=\"row\">\r\n			<h1 class=\"col-md-offset-3\"> Edit Product </h1>\r\n			<div class=\"col-md-6 col-md-offset-1\">\r\n				<form class=\"form-horizontal\">\r\n				  <div class=\"form-group\">\r\n				    <label for=\"first_name\" class=\"control-label col-md-3\">First Name</label>\r\n				    <div class=\"col-md-9\">\r\n				    	<input type=\"text\" class=\"form-control\" id=\"first_name\" placeholder=\"Nikita\">\r\n				    </div>\r\n				  </div> \r\n				  <div class=\"form-group\">\r\n				    <label for=\"last_name\" class=\"control-label col-md-3\">Last Name</label>\r\n				    <div class=\"col-md-9\">\r\n				    	<input type=\"text\" class=\"form-control\" id=\"last_name\" placeholder=\"Belonovych\">\r\n				    </div>\r\n				  </div> \r\n				  <div class=\"form-group\">\r\n				    <label for=\"email\" class=\"control-label col-md-3\">Email</label>\r\n				    <div class=\"col-md-9\">\r\n				    	<input type=\"email\" class=\"form-control\" id=\"email\" placeholder=\"your@gmail.com\">\r\n				    </div>\r\n				  </div> \r\n				</form>\r\n			</div>\r\n		</div>\r\n	</div>\r\n</div>");
 $templateCache.put("usersList.html","<h1> works </h1>");}]);

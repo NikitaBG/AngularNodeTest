@@ -1,78 +1,78 @@
-<div class="form">
+<div class="login-form">
       
-      <ul class="tab-group">
+      <ul class="login-tab-group">
         <li class="tab active"><a href="#login">Log In</a></li>
         <li class="tab"><a href="#signup">Sign Up</a></li>
       </ul>
       
-      <div class="tab-content">
+      <div class="login-tab-content">
         <div id="login">   
-          <h1>Welcome Back!</h1>
+          <h1 class="login-h1">Welcome Back!</h1>
           
-          <form action="/" method="post">
+          <form>
           
-            <div class="field-wrap">
-            <label>
+            <div class="login-field-wrap">
+            <label class="login-label">
               Email Address<span class="req">*</span>
             </label>
-            <input type="email"required autocomplete="off"/>
+            <input class="login-input" type="email" required autocomplete="off" ng-model="email"/>
           </div>
           
-          <div class="field-wrap">
-            <label>
+          <div class="login-field-wrap">
+            <label class="login-label">
               Password<span class="req">*</span>
             </label>
-            <input type="password"required autocomplete="off"/>
+            <input class="login-input" type="password" required autocomplete="off" ng-model="password"/>
           </div>
           
-          <button class="button button-block"/>Log In</button>
+          <button class="login-button login-button-block" ng-click="logIn(email,password)"/>Log In</button>
           
           </form>
 
         </div>
         <div id="signup">   
-          <h1>Sign Up for Free</h1>
+          <h1 class="login-h1">Sign Up for Free</h1>
           
-          <form action="/" method="post">
+          <form>
           
-          <div class="top-row">
-            <div class="field-wrap">
-              <label>
+          <div class="login-top-row">
+            <div class="login-field-wrap">
+              <label class="login-label">
                 First Name<span class="req">*</span>
               </label>
-              <input type="text" required autocomplete="off" />
+              <input class="login-input" type="text" required autocomplete="off" />
             </div>
         
-            <div class="field-wrap">
-              <label>
+            <div class="login-field-wrap">
+              <label class="login-label">
                 Last Name<span class="req">*</span>
               </label>
-              <input type="text"required autocomplete="off"/>
+              <input class="login-input" type="text"required autocomplete="off"/>
             </div>
           </div>
 
-          <div class="field-wrap">
-            <label>
+          <div class="login-field-wrap">
+            <label class="login-label">
               Phone Number<span class="req">*</span>
             </label>
-            <input type="text"required autocomplete="off"/>
+            <input class="login-input" type="text"required autocomplete="off"/>
           </div>
 
-          <div class="field-wrap">
-            <label>
+          <div class="login-field-wrap">
+            <label class="login-label">
               Email Address<span class="req">*</span>
             </label>
-            <input type="email"required autocomplete="off"/>
+            <input class="login-input" type="email"required autocomplete="off"/>
           </div>
           
-          <div class="field-wrap">
-            <label>
+          <div class="login-field-wrap">
+            <label class="login-label">
               Set A Password<span class="req">*</span>
             </label>
-            <input type="password"required autocomplete="off"/>
+            <input class="login-input" type="password"required autocomplete="off"/>
           </div>
           
-          <button type="submit" class="button button-block"/>Get Started</button>
+          <button type="submit" class="login-button login-button-block"/>Get Started</button>
           
           </form>
 

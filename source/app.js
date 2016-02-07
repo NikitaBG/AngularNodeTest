@@ -1,4 +1,4 @@
-var app = angular.module('app',['ngRoute','templates','appControllers','appServices','appDirectives']);
+var app = angular.module('app',['ngRoute','ngResource','templates','appControllers','appServices','appDirectives']);
 
 app.config(['$routeProvider', '$locationProvider', 
  function($routeProvider,$locationProvider) {
@@ -8,9 +8,6 @@ app.config(['$routeProvider', '$locationProvider',
 		controllerAs: 'login',
 		access: { requiredLogin: false }
 	})
-	/*.when('/users', {
-		templateUrl: 'usersList.html'
-	})*/
 	.when('/users/:userId', {
 		templateUrl: 'usersEdit.html',
 		access: { requiredLogin: true }
@@ -23,6 +20,14 @@ app.config(['$routeProvider', '$locationProvider',
 	})
 	.when('/products/:productsId', {
 		templateUrl: 'productsEdit.html',
+		controller: 'productsEditCtrl',
+		controllerAs: 'productsEdit',
+		access: { requiredLogin: true }
+	})
+	.when('/products/new', {
+		templateUrl: 'productsEdit.html',
+		controller: 'productsEditCtrl',
+		controllerAs: 'productsEdit',
 		access: { requiredLogin: true }
 	})
 	.otherwise({
@@ -36,9 +41,9 @@ app.config(function ($httpProvider) {
     $httpProvider.interceptors.push('tokenService');
 });
 
-app.run(function($rootScope, $location, authService) {
+app.run(function($rootScope, $location, $window, authService) {
     $rootScope.$on("$routeChangeStart", function(event, nextRoute, currentRoute) {
-        if (nextRoute.access && nextRoute.access.requiredLogin && !authService.isLogged) {
+        if (nextRoute.access && nextRoute.access.requiredLogin && !authService.isLogged && !$window.sessionStorage.token) {
             $location.path("/");
         }
     });

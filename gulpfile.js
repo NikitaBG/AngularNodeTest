@@ -28,7 +28,8 @@ var libs = {
 	//angularRoute: "lib/**/angular-route.min.js"
 	angular: "lib/**/angular.js",
 	jQuery: "lib/**/jquery.js",
-	angularRoute: "lib/**/angular-route.js"
+	angularRoute: "lib/**/angular-route.js",
+	angularResource: "lib/**/angular-resource.js"
 };
 
 function transformUrl(url){
@@ -55,7 +56,7 @@ gulp.task('bowerRemoveSources', function() {
 });
 
 gulp.task('js', function() {
-	return gulp.src(["webcontent/lib/angular.js","webcontent/lib/angular-route.js","webcontent/lib/jquery.min.js"])
+	return gulp.src(["webcontent/lib/angular.js","webcontent/lib/angular-route.js","webcontent/lib/jquery.min.js","webcontent/lib/angular-resource.js"])
 		.pipe(concat("amigo.js"))
 		.pipe(addStream.obj(gulp.src(path.sourceJs)))
 		.pipe(addStream.obj(prepareTemplates()))

@@ -1,24 +1,59 @@
-
 <div class="main-cointainer">
 	<div ng-include="'header.html'"></div>
 	<div class="container">
-		<table class="table table-striped" style="background-color: lightblue">
-		  <thead>
-		    <tr>
-		      <th>#</th>
-		      <th>First Name</th>
-		      <th>Last Name</th>
-		      <th>Username</th>
-		    </tr>
-		  </thead>
-		  <tbody>
-		    <tr ng-repeat="product in products">
-		      <th scope="row">#</th>
-		      <td>{{ product.name }}</td>
-		      <td>{{ product.name + product.name }}</td>
-		      <td>{{ product.name + product.name + product.name }}</td>
-		    </tr>
-		  </tbody>
-		</table>
+		<div class="row">
+			<div class="table-top-buttons">
+				<div class="col-md-2">
+					<button type="button" class="btn submit-button btn-primary" ng-click="createProduct()">Create New</button>
+				</div>
+				<div class="col-md-2">
+					<button type="button" class="btn submit-button btn-primary" style="display: none" id="deleteAllButton" ng-click="deleteAll()">Delete all</button>
+				</div>
+			</div>
+		</div>
+		<div class="row">
+			<table class="table table-striped" style="background-color: lightblue">
+			  <thead>
+			    <tr>
+			      <th><div>
+			            <input id="allCheckbox" class="checkbox-custom" name="allCheckbox" type="checkbox">
+			            <label for="allCheckbox"class="checkbox-custom-label"></label>    
+			        </div></th>
+			      <th>First Name</th>
+			      <th>Last Name</th>
+			      <th>Username</th>
+			    </tr>
+			  </thead>
+			  <tbody>
+			    <tr ng-repeat="product in products">
+			      <td>
+			      	<div>
+			            <input id="checkbox{{product.id}}" class="checkbox-custom" name="checkbox{{product.id}}" type="checkbox">
+			            <label for="checkbox{{product.id}}"class="checkbox-custom-label"></label>    
+			        </div>
+			      </td>
+			      <td>{{ product.name }}</td>
+			      <td>{{ product.price }}</td>
+			      <td>{{ product.description }}</td>
+			      <td><a href="/products/{{product.uuid}}"><span class="glyphicon glyphicon-pencil"></span></a></td>
+			      <td><button ng-click='delete(product.uuid)' class="list-delete-button"><span class="glyphicon glyphicon-trash"></span></button></td>
+			    </tr>
+			  </tbody>
+			</table>
+		</div>
 	</div>
 </div>
+
+<!-- for checkbox
+$("#allCheckbox").on("change", function(elem){
+	var elements = $("table td input[type=checkbox]");
+	for (var i = elements.length; i--;) {
+	    elements[i].checked = this.checked;
+	}
+	if(this.checked){
+		$("#deleteAllButton").css({display:"block"});
+	} else {
+		$("#deleteAllButton").css({display:"none"});
+	}
+});
+ -->
