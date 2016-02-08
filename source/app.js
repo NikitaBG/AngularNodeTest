@@ -10,6 +10,8 @@ app.config(['$routeProvider', '$locationProvider',
 	})
 	.when('/users/:userId', {
 		templateUrl: 'usersEdit.html',
+		controller: 'userEditCtrl',
+		controllerAs: 'userEdit',
 		access: { requiredLogin: true }
 	})
 	.when('/products', {
@@ -30,9 +32,14 @@ app.config(['$routeProvider', '$locationProvider',
 		controllerAs: 'productsEdit',
 		access: { requiredLogin: true }
 	})
+	.when('/notFound', {
+		templateUrl: 'notFound.html',
+		access: { requiredLogin: false }
+	})
 	.otherwise({
-		redirectTo: '/'
+		redirectTo: '/notFound'
 	});
+
 	$locationProvider.html5Mode({enabled: true, requireBase: false});
 	$locationProvider.hashPrefix('!');
 }]);

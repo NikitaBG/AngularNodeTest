@@ -1,4 +1,4 @@
-<nav class="navbar navbar-inverse navbar-fixed-top">
+<nav class="navbar navbar-inverse navbar-fixed-top" ng-controller="headerCtrl as header">
   <div class="col-md-12">
     <div class="navbar-header">
       <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
@@ -15,9 +15,9 @@
         <!--<li><a href="#about">Users</a></li>-->
       </ul>
     <ul class="nav navbar-nav navbar-right">
-  	<p class="navbar-text">FirstName LastName</p>
-  	<li><a>Settings</a></li>
-  	<li><a>Log Out</a></li>
+  	<p class="navbar-text">{{user.first_name + " " + user.last_name}}</p>
+    <li><a href="/users/{{user.uuid}}">Settings</a></li>
+  	<li><a href ng-click="logOut()">Log Out</a></li>
     </ul>
     </div>
   </div>
