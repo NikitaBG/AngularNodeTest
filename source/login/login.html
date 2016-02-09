@@ -40,14 +40,14 @@
               <label class="login-label">
                 First Name<span class="req">*</span>
               </label>
-              <input class="login-input" type="text" required autocomplete="off" />
+              <input class="login-input" type="text" required autocomplete="off" ng-model="entity.first_name"/>
             </div>
         
             <div class="login-field-wrap">
               <label class="login-label">
                 Last Name<span class="req">*</span>
               </label>
-              <input class="login-input" type="text"required autocomplete="off"/>
+              <input class="login-input" type="text"required autocomplete="off" ng-model="entity.last_name"/>
             </div>
           </div>
 
@@ -55,24 +55,24 @@
             <label class="login-label">
               Phone Number<span class="req">*</span>
             </label>
-            <input class="login-input" type="text"required autocomplete="off"/>
+            <input class="login-input" type="text"required autocomplete="off" ng-model="entity.phone_number"/>
           </div>
 
           <div class="login-field-wrap">
             <label class="login-label">
               Email Address<span class="req">*</span>
             </label>
-            <input class="login-input" type="email"required autocomplete="off"/>
+            <input class="login-input" type="email"required autocomplete="off" ng-model="entity.email"/>
           </div>
           
           <div class="login-field-wrap">
             <label class="login-label">
               Set A Password<span class="req">*</span>
             </label>
-            <input class="login-input" type="password"required autocomplete="off"/>
+            <input class="login-input" type="password"required autocomplete="off" ng-model="entity.password"/>
           </div>
           
-          <button type="submit" class="login-button login-button-block"/>Get Started</button>
+          <button type="submit" class="login-button login-button-block" ng-click="signIn()"/>Get Started</button>
           
           </form>
 

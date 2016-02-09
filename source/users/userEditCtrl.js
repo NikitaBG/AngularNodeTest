@@ -1,7 +1,18 @@
-angular.module("app").controller('userEditCtrl', ['$scope','$location','$resource','$route', function($scope,$location,$resource,$route) {
+angular.module("app").controller('userEditCtrl', ['$scope','$location','$resource','$route','userService', function($scope,$location,$resource,$route,userService) {
+
+	userService.get($route.current.params.userId).then(function(response){
+		$scope.entity = response.user;
+		$scope.index = 0;
+	}, function(status,data){
+		console.log(status);
+	});
 
 	$scope.save = function(){
-		return $resource("/api/products").save($scope.entity, function(data){ $location.path("/products");}, function(status,data){ console.log(status); console.log(data)});
+		return userService.update($scope.entity).then(function(data){ 
+			$location.path("/products");
+		}, function(status,data){
+		 console.log(status); 
+		});
 	};
 
 	$scope.cancel = function() {

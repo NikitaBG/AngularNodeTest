@@ -29656,8 +29656,8 @@ $provide.value("$locale", {
 
 !window.angular.$$csp().noInlineStyle && window.angular.element(document.head).prepend('<style type="text/css">@charset "UTF-8";[ng\\:cloak],[ng-cloak],[data-ng-cloak],[x-ng-cloak],.ng-cloak,.x-ng-cloak,.ng-hide:not(.ng-hide-animate){display:none !important;}ng\\:form{display:block;}.ng-animate-shim{visibility:hidden;}.ng-anchor{position:absolute;}</style>');
 /**
- * @license AngularJS v1.4.9
- * (c) 2010-2015 Google, Inc. http://angularjs.org
+ * @license AngularJS v1.5.0
+ * (c) 2010-2016 Google, Inc. http://angularjs.org
  * License: MIT
  */
 (function(window, angular, undefined) {'use strict';
@@ -29762,8 +29762,17 @@ function $RouteProvider() {
    *      If all the promises are resolved successfully, the values of the resolved promises are
    *      injected and {@link ngRoute.$route#$routeChangeSuccess $routeChangeSuccess} event is
    *      fired. If any of the promises are rejected the
-   *      {@link ngRoute.$route#$routeChangeError $routeChangeError} event is fired. The map object
-   *      is:
+   *      {@link ngRoute.$route#$routeChangeError $routeChangeError} event is fired.
+   *      For easier access to the resolved dependencies from the template, the `resolve` map will
+   *      be available on the scope of the route, under `$resolve` (by default) or a custom name
+   *      specified by the `resolveAs` property (see below). This can be particularly useful, when
+   *      working with {@link angular.Module#component components} as route templates.<br />
+   *      <div class="alert alert-warning">
+   *        **Note:** If your scope already contains a property with this name, it will be hidden
+   *        or overwritten. Make sure, you specify an appropriate name for this property, that
+   *        does not collide with other properties on the scope.
+   *      </div>
+   *      The map object is:
    *
    *      - `key` – `{string}`: a name of a dependency to be injected into the controller.
    *      - `factory` - `{string|function}`: If `string` then it is an alias for a service.
@@ -29773,7 +29782,10 @@ function $RouteProvider() {
    *        `ngRoute.$routeParams` will still refer to the previous route within these resolve
    *        functions.  Use `$route.current.params` to access the new route parameters, instead.
    *
-   *    - `redirectTo` – {(string|function())=} – value to update
+   *    - `resolveAs` - `{string=}` - The name under which the `resolve` map will be available on
+   *      the scope of the route. If omitted, defaults to `$resolve`.
+   *
+   *    - `redirectTo` – `{(string|function())=}` – value to update
    *      {@link ng.$location $location} path with and trigger route redirection.
    *
    *      If `redirectTo` is a function, it will be called with the following parameters:
@@ -29786,13 +29798,13 @@ function $RouteProvider() {
    *      The custom `redirectTo` function is expected to return a string which will be used
    *      to update `$location.path()` and `$location.search()`.
    *
-   *    - `[reloadOnSearch=true]` - {boolean=} - reload route when only `$location.search()`
+   *    - `[reloadOnSearch=true]` - `{boolean=}` - reload route when only `$location.search()`
    *      or `$location.hash()` changes.
    *
    *      If the option is set to `false` and url in the browser changes, then
    *      `$routeUpdate` event is broadcasted on the root scope.
    *
-   *    - `[caseInsensitiveMatch=false]` - {boolean=} - match routes without being case sensitive
+   *    - `[caseInsensitiveMatch=false]` - `{boolean=}` - match routes without being case sensitive
    *
    *      If the option is set to `true`, then the particular route can be matched without being
    *      case sensitive
@@ -29922,13 +29934,17 @@ function $RouteProvider() {
      * @property {Object} current Reference to the current route definition.
      * The route definition contains:
      *
-     *   - `controller`: The controller constructor as define in route definition.
+     *   - `controller`: The controller constructor as defined in the route definition.
      *   - `locals`: A map of locals which is used by {@link ng.$controller $controller} service for
      *     controller instantiation. The `locals` contain
      *     the resolved values of the `resolve` map. Additionally the `locals` also contain:
      *
      *     - `$scope` - The current route scope.
      *     - `$template` - The current route template HTML.
+     *
+     *     The `locals` will be assigned to the route scope's `$resolve` property. You can override
+     *     the property name, using `resolveAs` in the route definition. See
+     *     {@link ngRoute.$routeProvider $routeProvider} for more info.
      *
      * @property {Object} routes Object with all route configuration Objects as its properties.
      *
@@ -30125,10 +30141,18 @@ function $RouteProvider() {
            */
           reload: function() {
             forceReload = true;
+
+            var fakeLocationEvent = {
+              defaultPrevented: false,
+              preventDefault: function fakePreventDefault() {
+                this.defaultPrevented = true;
+                forceReload = false;
+              }
+            };
+
             $rootScope.$evalAsync(function() {
-              // Don't support cancellation of a reload for now...
-              prepareRoute();
-              commitRoute();
+              prepareRoute(fakeLocationEvent);
+              if (!fakeLocationEvent.defaultPrevented) commitRoute();
             });
           },
 
@@ -30638,6 +30662,7 @@ function ngViewFillContentFactory($compile, $controller, $route) {
         $element.data('$ngControllerController', controller);
         $element.children().data('$ngControllerController', controller);
       }
+      scope[current.resolveAs || '$resolve'] = locals;
 
       link(scope);
     }
@@ -31416,7 +31441,7 @@ angular.module('ngResource', ['ng']).
 
 })(window, window.angular);
 
-var app = angular.module('app',['ngRoute','ngResource','templates','appControllers','appServices','appDirectives']);
+var app = angular.module('app',['ngRoute','ngResource','templates','appControllers','appServices','appDirectives','appFilters']);
 
 app.config(['$routeProvider', '$locationProvider', 
  function($routeProvider,$locationProvider) {
@@ -31477,6 +31502,7 @@ app.run(function($rootScope, $location, $window, authService) {
 var appControllers = angular.module('appControllers', []);
 var appServices = angular.module('appServices', []);
 var appDirectives = angular.module('appDirectives', []);
+var appFilters = angular.module('appFilters', []);
 angular.module("app").controller('headerCtrl', ['$scope','$location','$resource','userService', function($scope,$location,$resource,userService) {
 
 	(function(){
@@ -31495,54 +31521,72 @@ angular.module("app").controller('headerCtrl', ['$scope','$location','$resource'
 		"/users/" + $scope.user.uuid;
 	};
 }]);
-appControllers.controller('authCtrl', ['$scope', '$location', '$window', 'userService', 'authService',
-    function authCtrl($scope, $location, $window, userService, authService) {
- 
-        //Admin User Controller (login, logout)
-        $scope.logIn = function logIn(username, password) {
-            if (username !== undefined && password !== undefined) {
- 
-                userService.logIn(username, password).success(function(data) {
-                    authService.isLogged = true;
-                    $window.sessionStorage.token = data.token;
-                    $location.path("/products");
-                }).error(function(status, data) {
-                    console.log(status);
-                    console.log(data);
-                });
-            }
-        }
- 
-        $scope.logout = function logout() {
-            if (authService.isLogged) {
-                authService.isLogged = false;
-                delete $window.sessionStorage.token;
-                $location.path("/");
-            }
-        }
-    }
-]);
+/*appDirectives.directive('table', function() {
+  return {
+  	restrict: 'E',
+    template: 'Name: {{customer.name}} Address: {{customer.address}}'
+  };
+});*/
 appControllers.controller('loginCtrl', ['$scope', 'loginFormService','userService','authService','$window','$location', function($scope, loginFormService, userService,authService,$window,$location) {
+    
     loginFormService();
+
     $scope.logIn = function logIn(username, password) {
         if (username !== undefined && password !== undefined) {
-			userService.logIn(username, password, successAction, errorAction);
+			userService.logIn(username, password).then(function(response){
+                proccesToken(response)
+            }, function(status,data){
+                console.log(status);
+            });
         }
     }
 
-    var successAction = function(data){
-    	if(data && data.token){
-    		authService.isLogged = true;
-	        $window.sessionStorage.token = data.token;
-	        $location.path("/products");
-    	}
+    $scope.signIn = function(){
+        userService.signIn($scope.entity).then(function(response){
+            proccesToken(response);
+        }, function(status,data){
+            console.log(status);
+        })
+    };
+
+    var proccesToken = function(response){
+        if(response && response.token){
+            authService.isLogged = true;
+            $window.sessionStorage.token = response.token;
+            $location.path("/products");
+        }
     }
 
-    var errorAction = function(status, data){
-    	console.log(status);
-        console.log(data);
-    }
 }]);
+appFilters.filter('pagination', function() {
+  return function(input, range, page) {
+  	if(input && range && page){
+  		if(input.length - ((page-1) * range) < 0){
+  			page = 1;
+  			return input.slice((page-1)*range, (page-1)*range + range);
+  		}
+    	return input.slice((page-1)*range, (page-1)*range + range);
+	}
+  };
+});
+appFilters.filter('paginationSize', function() {
+  return function(input, array, range) {
+  	if(input && array && range){
+		var pages = [];
+		for(var index = 1; index <= Math.ceil(array.length / range) && Math.ceil(array.length / range) > 1; index++){
+			pages.push(index);
+		}
+		return pages;
+	}
+  };
+});
+appFilters.filter('range', function() {
+  return function(input, total) {
+  	if(input && total){
+    	return input.slice(0, total);
+	}
+  };
+});
 angular.module("app").controller('productsEditCtrl', ['$scope','$location','$resource','$route','productsService', function($scope,$location,$resource,$route,productsService) {
 
 	var productsId = $route.current.params.productsId;
@@ -31561,7 +31605,7 @@ angular.module("app").controller('productsEditCtrl', ['$scope','$location','$res
 	}
 
 	$scope.save = function(){
-		productsService.save(isCreate ? "" : $scope.entity.uuid, $scope.entity, isCreate ? "" : $scope.entity.uuid).then(function(response){
+		productsService.save($scope.entity, isCreate ? "" : $scope.entity.uuid).then(function(response){
 			$location.path("/products")
 		}, function(status, data){
 			console.log(status);
@@ -31572,21 +31616,51 @@ angular.module("app").controller('productsEditCtrl', ['$scope','$location','$res
 		$location.path("/products")
 	};
 }]);
-angular.module("app").controller('productsListCtrl', ['$scope','$resource','$location','$route', function($scope, $resource, $location, $route) {
+angular.module("app").controller('productsListCtrl', ['$scope','$resource','$location','$route','productsService','$filter', function($scope, $resource, $location, $route, productsService, $filter) {
     
-    $scope.newProducts = $resource("/api/products").get({
-
-    },function(response){
+    $scope.newProducts = $resource("/api/products").get({},function(response){
     	if(response.content.length){
     		$scope.products = response.content;
+    		$scope.originalProducts = response.content;
+    		$scope.filterPagination($scope.originalProducts);
     	}
     }, function(status, data){
-
+    	console.log(status);
     });
+
+    $scope.pagination = 1;
+    $scope.recordsToShow = 10;
+	$scope.predicate = '';
+	$scope.reverse = true;
+	$scope.order = function(predicate) {
+		$scope.reverse = ($scope.predicate === predicate) ? !$scope.reverse : false;
+		$scope.predicate = predicate;
+	};
+	$scope.setPagination = function(page){
+		$scope.pagination = page;
+	}
+	$scope.filterPagination = function(recordsToShow){
+		var pages = Math.ceil($scope.originalProducts.length / recordsToShow);
+		if(pages > 1){
+			$scope.pages = [];
+    		for(var page = 1; page <= pages; page++){
+    			$scope.pages.push(page);
+    		}
+    		$scope.pagination = 1;
+		}
+	}
+
+	$scope.indexValue = function(){
+		if($scope.originalProducts.length - (($scope.pagination-1) * $scope.recordsToShow) < 0){
+  			return 1;
+  		} else {
+  			return ($scope.pagination-1)*$scope.recordsToShow + 1;
+  		}
+	}
 
 	$scope.delete = function(uuid){
 		if(uuid){
-			$resource("/api/products/:productUuid").delete({productUuid: uuid}, function(){
+			productsService.deleteAll([uuid]).then(function(){
 				$route.reload();
 			}, function() {
 
@@ -31596,17 +31670,47 @@ angular.module("app").controller('productsListCtrl', ['$scope','$resource','$loc
 
 	$scope.createProduct = function(){
 		$location.path("/products/new");
-	}
+	};
 
 	$scope.deleteAll = function(){
-		if($scope.products){
-			$resource("/api/products/:productUuid").delete({productUuid: "DELETEALL"}, function(){
+		var checked = $("table td input:checked");
+		var uuids = [];
+		for(var index = checked.length; index--;){
+			uuids.push(checked[index].value);
+		}
+		if(uuids.length){
+			productsService.deleteAll(uuids).then(function(){
 				$route.reload();
 			}, function() {
 
 			});
 		}
+	};
+
+	$scope.goToPage = function(page){
+		console.log(page);
 	}
+}]);
+angular.module("app").controller('userEditCtrl', ['$scope','$location','$resource','$route','userService', function($scope,$location,$resource,$route,userService) {
+
+	userService.get($route.current.params.userId).then(function(response){
+		$scope.entity = response.user;
+		$scope.index = 0;
+	}, function(status,data){
+		console.log(status);
+	});
+
+	$scope.save = function(){
+		return userService.update($scope.entity).then(function(data){ 
+			$location.path("/products");
+		}, function(status,data){
+		 console.log(status); 
+		});
+	};
+
+	$scope.cancel = function() {
+		$location.path("/products");
+	};
 }]);
 appServices.factory('authService', function() {
     var auth = {
@@ -31667,11 +31771,12 @@ appServices.factory('productsService',['$resource','$window','$location', functi
         get: function(productId) {
             return $resource("/api/products/:productId").get({productId: productId}).$promise;
         },
-        save: function(url, entity, productId){
-            return $resource("/api/products/" + url).save(entity).$promise;
-            /*return $resource("/api/products/:productId").save({productId: productId},entity).$promise;*/
+        save: function(entity, productId){
+            return $resource("/api/products/:productId").save({productId: productId},entity).$promise;
         },
-
+        deleteAll: function(entity){
+        	return $resource("/api/deleteProducts").save({uuids:entity}).$promise;
+        }
     }
 }]);
 appServices.factory('tokenService', function ($q, $window, authService, $location) {
@@ -31708,35 +31813,33 @@ appServices.factory('tokenService', function ($q, $window, authService, $locatio
         }
     };
 });
-appServices.factory('userService',['$resource','$window','$location', function($resource, $window, $location) {
+appServices.factory('userService',['$resource','$window','$location','authService', function($resource, $window, $location, authService) {
     return {
-        logIn: function(email, password, succesFunc, errorFunc) {
-            return $resource("api/login").save({email:email, password:password}, function(data){ succesFunc(data);}, function(status,data){ errorFunc(status,data);});
+        logIn: function(email, password) {
+            return $resource("api/login").save({email:email, password:password}).$promise;
         },
         logOut: function() {
- 			delete $window.sessionStorage.token;
- 			$location.path("/");
- 			console.log($route);
+            delete $window.sessionStorage.token;
+            $location.path("/");
         },
         getCurrentData: function() {
         	return $resource("/api/currentUser").get({}).$promise;
+        },
+        get: function(uuid){
+            return $resource("/api/users/:userId").get({userId: uuid}).$promise;
+        },
+        update: function(entity){
+            return $resource("/api/updateUser/:userId").save({userId: entity.uuid}, entity).$promise;
+        },
+        signIn: function(entity){
+            return $resource("/api/signIn").save(entity).$promise;
         }
     }
 }]);
-angular.module("app").controller('userEditCtrl', ['$scope','$location','$resource','$route', function($scope,$location,$resource,$route) {
-
-	$scope.save = function(){
-		return $resource("/api/products").save($scope.entity, function(data){ $location.path("/products");}, function(status,data){ console.log(status); console.log(data)});
-	};
-
-	$scope.cancel = function() {
-		$location.path("/products");
-	};
-}]);
 angular.module("templates", []).run(["$templateCache", function($templateCache) {$templateCache.put("header.html","<nav class=\"navbar navbar-inverse navbar-fixed-top\" ng-controller=\"headerCtrl as header\">\r\n  <div class=\"col-md-12\">\r\n    <div class=\"navbar-header\">\r\n      <button type=\"button\" class=\"navbar-toggle collapsed\" data-toggle=\"collapse\" data-target=\"#navbar\" aria-expanded=\"false\" aria-controls=\"navbar\">\r\n        <span class=\"sr-only\">Toggle navigation</span>\r\n        <span class=\"icon-bar\"></span>\r\n        <span class=\"icon-bar\"></span>\r\n        <span class=\"icon-bar\"></span>\r\n      </button>\r\n      <a class=\"navbar-brand\">AngularJS</a>\r\n    </div>\r\n    <div id=\"navbar\" class=\"collapse navbar-collapse\">\r\n      <ul class=\"nav navbar-nav\">\r\n        <li class=\"active\"><a href=\"/products\">Products</a></li>\r\n        <!--<li><a href=\"#about\">Users</a></li>-->\r\n      </ul>\r\n    <ul class=\"nav navbar-nav navbar-right\">\r\n  	<p class=\"navbar-text\">{{user.first_name + \" \" + user.last_name}}</p>\r\n    <li><a href=\"/users/{{user.uuid}}\">Settings</a></li>\r\n  	<li><a href ng-click=\"logOut()\">Log Out</a></li>\r\n    </ul>\r\n    </div>\r\n  </div>\r\n</nav>");
 $templateCache.put("notFound.html","<div class=\"wrap-wrap\">\r\n	<div class=\"logo\">\r\n			<p>OOPS! - Could not Find it</p>\r\n			<img src=\"/images/404.png\"/>\r\n			<div class=\"sub-sub\">\r\n			  <p><a href=\"/\"> Home </a></p>\r\n			</div>\r\n	</div>\r\n</div>	");
-$templateCache.put("login.html","<div class=\"login-form\">\r\n      \r\n      <ul class=\"login-tab-group\">\r\n        <li class=\"tab active\"><a href=\"#login\">Log In</a></li>\r\n        <li class=\"tab\"><a href=\"#signup\">Sign Up</a></li>\r\n      </ul>\r\n      \r\n      <div class=\"login-tab-content\">\r\n        <div id=\"login\">   \r\n          <h1 class=\"login-h1\">Welcome Back!</h1>\r\n          \r\n          <form>\r\n          \r\n            <div class=\"login-field-wrap\">\r\n            <label class=\"login-label\">\r\n              Email Address<span class=\"req\">*</span>\r\n            </label>\r\n            <input class=\"login-input\" type=\"email\" required autocomplete=\"off\" ng-model=\"email\"/>\r\n          </div>\r\n          \r\n          <div class=\"login-field-wrap\">\r\n            <label class=\"login-label\">\r\n              Password<span class=\"req\">*</span>\r\n            </label>\r\n            <input class=\"login-input\" type=\"password\" required autocomplete=\"off\" ng-model=\"password\"/>\r\n          </div>\r\n          \r\n          <button class=\"login-button login-button-block\" ng-click=\"logIn(email,password)\"/>Log In</button>\r\n          \r\n          </form>\r\n\r\n        </div>\r\n        <div id=\"signup\">   \r\n          <h1 class=\"login-h1\">Sign Up for Free</h1>\r\n          \r\n          <form>\r\n          \r\n          <div class=\"login-top-row\">\r\n            <div class=\"login-field-wrap\">\r\n              <label class=\"login-label\">\r\n                First Name<span class=\"req\">*</span>\r\n              </label>\r\n              <input class=\"login-input\" type=\"text\" required autocomplete=\"off\" />\r\n            </div>\r\n        \r\n            <div class=\"login-field-wrap\">\r\n              <label class=\"login-label\">\r\n                Last Name<span class=\"req\">*</span>\r\n              </label>\r\n              <input class=\"login-input\" type=\"text\"required autocomplete=\"off\"/>\r\n            </div>\r\n          </div>\r\n\r\n          <div class=\"login-field-wrap\">\r\n            <label class=\"login-label\">\r\n              Phone Number<span class=\"req\">*</span>\r\n            </label>\r\n            <input class=\"login-input\" type=\"text\"required autocomplete=\"off\"/>\r\n          </div>\r\n\r\n          <div class=\"login-field-wrap\">\r\n            <label class=\"login-label\">\r\n              Email Address<span class=\"req\">*</span>\r\n            </label>\r\n            <input class=\"login-input\" type=\"email\"required autocomplete=\"off\"/>\r\n          </div>\r\n          \r\n          <div class=\"login-field-wrap\">\r\n            <label class=\"login-label\">\r\n              Set A Password<span class=\"req\">*</span>\r\n            </label>\r\n            <input class=\"login-input\" type=\"password\"required autocomplete=\"off\"/>\r\n          </div>\r\n          \r\n          <button type=\"submit\" class=\"login-button login-button-block\"/>Get Started</button>\r\n          \r\n          </form>\r\n\r\n        </div>\r\n        \r\n      </div><!-- tab-content -->\r\n      \r\n</div>");
+$templateCache.put("login.html","<div class=\"login-form\">\r\n      \r\n      <ul class=\"login-tab-group\">\r\n        <li class=\"tab active\"><a href=\"#login\">Log In</a></li>\r\n        <li class=\"tab\"><a href=\"#signup\">Sign Up</a></li>\r\n      </ul>\r\n      \r\n      <div class=\"login-tab-content\">\r\n        <div id=\"login\">   \r\n          <h1 class=\"login-h1\">Welcome Back!</h1>\r\n          \r\n          <form>\r\n          \r\n            <div class=\"login-field-wrap\">\r\n            <label class=\"login-label\">\r\n              Email Address<span class=\"req\">*</span>\r\n            </label>\r\n            <input class=\"login-input\" type=\"email\" required autocomplete=\"off\" ng-model=\"email\"/>\r\n          </div>\r\n          \r\n          <div class=\"login-field-wrap\">\r\n            <label class=\"login-label\">\r\n              Password<span class=\"req\">*</span>\r\n            </label>\r\n            <input class=\"login-input\" type=\"password\" required autocomplete=\"off\" ng-model=\"password\"/>\r\n          </div>\r\n          \r\n          <button class=\"login-button login-button-block\" ng-click=\"logIn(email,password)\"/>Log In</button>\r\n          \r\n          </form>\r\n\r\n        </div>\r\n        <div id=\"signup\">   \r\n          <h1 class=\"login-h1\">Sign Up for Free</h1>\r\n          \r\n          <form>\r\n          \r\n          <div class=\"login-top-row\">\r\n            <div class=\"login-field-wrap\">\r\n              <label class=\"login-label\">\r\n                First Name<span class=\"req\">*</span>\r\n              </label>\r\n              <input class=\"login-input\" type=\"text\" required autocomplete=\"off\" ng-model=\"entity.first_name\"/>\r\n            </div>\r\n        \r\n            <div class=\"login-field-wrap\">\r\n              <label class=\"login-label\">\r\n                Last Name<span class=\"req\">*</span>\r\n              </label>\r\n              <input class=\"login-input\" type=\"text\"required autocomplete=\"off\" ng-model=\"entity.last_name\"/>\r\n            </div>\r\n          </div>\r\n\r\n          <div class=\"login-field-wrap\">\r\n            <label class=\"login-label\">\r\n              Phone Number<span class=\"req\">*</span>\r\n            </label>\r\n            <input class=\"login-input\" type=\"text\"required autocomplete=\"off\" ng-model=\"entity.phone_number\"/>\r\n          </div>\r\n\r\n          <div class=\"login-field-wrap\">\r\n            <label class=\"login-label\">\r\n              Email Address<span class=\"req\">*</span>\r\n            </label>\r\n            <input class=\"login-input\" type=\"email\"required autocomplete=\"off\" ng-model=\"entity.email\"/>\r\n          </div>\r\n          \r\n          <div class=\"login-field-wrap\">\r\n            <label class=\"login-label\">\r\n              Set A Password<span class=\"req\">*</span>\r\n            </label>\r\n            <input class=\"login-input\" type=\"password\"required autocomplete=\"off\" ng-model=\"entity.password\"/>\r\n          </div>\r\n          \r\n          <button type=\"submit\" class=\"login-button login-button-block\" ng-click=\"signIn()\"/>Get Started</button>\r\n          \r\n          </form>\r\n\r\n        </div>\r\n        \r\n      </div><!-- tab-content -->\r\n      \r\n</div>");
 $templateCache.put("productsEdit.html","<div class=\"main-cointainer\">\r\n	<div ng-include=\"\'header.html\'\"></div>\r\n	<div class=\"container\">\r\n		<div class=\"row\">\r\n			<h1 class=\"col-md-offset-5\"> {{header}}</h1>\r\n			<div class=\"col-md-6 col-md-offset-3\">\r\n				<form class=\"form-horizontal\">\r\n				  <div class=\"form-group <!-- col-md-11 -->\">\r\n				    <label for=\"name\" class=\"control-label col-md-3\">Name</label>\r\n				    <div class=\"col-md-9\">\r\n				    	<input type=\"text\" class=\"form-control\" id=\"name\" placeholder=\"Nikita\" ng-model=\"entity.name\">\r\n				    </div>\r\n				  </div> \r\n				  <div class=\"form-group <!-- col-md-11 -->\">\r\n				    <label for=\"amount\" class=\"control-label col-md-3\">Amount</label>\r\n				    <div class=\"col-md-9\">\r\n				    	<input type=\"text\" class=\"form-control\" id=\"amount\" placeholder=\"Belonovych\" ng-model=\"entity.amount\">\r\n				    </div>\r\n				  </div> \r\n				  <div class=\"form-group <!-- col-md-11 -->\">\r\n				    <label for=\"price\" class=\"control-label col-md-3\">Price</label>\r\n				    <div class=\"col-md-9\">\r\n					  <input type=\"number\" class=\"form-control\" id=\"price\" step=\'0.01\' value=\'0.00\' placeholder=\'0.00\' min=\'0\' ng-model=\"entity.price\">\r\n					  <!--$(\"#price\").on(\"change\", function(){\r\n					   $(this).val(parseFloat($(this).val()).toFixed(2));\r\n					});-->\r\n					</div>\r\n				  </div> \r\n				  <div class=\"form-group <!-- col-md-11 -->\">\r\n				    <label for=\"price\" class=\"control-label col-md-3\">Description</label>\r\n				    <div class=\"col-md-9\">\r\n				    	<textarea rows=\"5\" class=\"form-control\" id=\"description\" placeholder=\"Here you can describe you product...\" ng-model=\"entity.description\"></textarea>\r\n				    </div>\r\n				  </div>\r\n				  <div class=\"col-md-3 col-md-offset-3\">\r\n				  	<button type=\"button\" class=\"btn submit-button btn-primary\" ng-click=\"save()\">Save</button>\r\n				  </div>\r\n				  <div class=\"col-md-3\">\r\n				  	<button type=\"button\" class=\"btn submit-button btn-primary\" ng-click=\"cancel()\">Cancel</button>\r\n				  </div>\r\n				</form>\r\n			</div>\r\n		</div>\r\n	</div>\r\n</div>");
-$templateCache.put("productsList.html","<div class=\"main-cointainer\">\r\n	<div ng-include=\"\'header.html\'\"></div>\r\n	<div class=\"container\">\r\n		<div class=\"row\">\r\n			<div class=\"table-top-buttons\">\r\n				<div class=\"col-md-2\">\r\n					<button type=\"button\" class=\"btn submit-button btn-primary\" ng-click=\"createProduct()\">Create New</button>\r\n				</div>\r\n				<div class=\"col-md-2\">\r\n					<button type=\"button\" class=\"btn submit-button btn-primary\" style=\"display: none\" id=\"deleteAllButton\" ng-click=\"deleteAll()\">Delete all</button>\r\n				</div>\r\n			</div>\r\n		</div>\r\n		<div class=\"row\">\r\n			<table class=\"table table-striped\" style=\"background-color: lightblue\">\r\n			  <thead>\r\n			    <tr>\r\n			      <th><div>\r\n			            <input id=\"allCheckbox\" class=\"checkbox-custom\" name=\"allCheckbox\" type=\"checkbox\">\r\n			            <label for=\"allCheckbox\"class=\"checkbox-custom-label\"></label>    \r\n			        </div></th>\r\n			      <th>Name</th>\r\n			      <th>Price</th>\r\n			      <th>Description</th>\r\n			    </tr>\r\n			  </thead>\r\n			  <tbody>\r\n			    <tr ng-repeat=\"product in products\">\r\n			      <td>\r\n			      	<div>\r\n			            <input id=\"checkbox{{product.id}}\" class=\"checkbox-custom\" name=\"checkbox{{product.id}}\" type=\"checkbox\">\r\n			            <label for=\"checkbox{{product.id}}\"class=\"checkbox-custom-label\"></label>    \r\n			        </div>\r\n			      </td>\r\n			      <td>{{ product.name }}</td>\r\n			      <td>{{ product.price }}</td>\r\n			      <td>{{ product.description }}</td>\r\n			      <td><a href=\"/products/{{product.uuid}}\"><span class=\"glyphicon glyphicon-pencil\"></span></a></td>\r\n			      <td><button ng-click=\'delete(product.uuid)\' class=\"list-delete-button\"><span class=\"glyphicon glyphicon-trash\"></span></button></td>\r\n			    </tr>\r\n			  </tbody>\r\n			</table>\r\n		</div>\r\n	</div>\r\n</div>\r\n\r\n<!-- for checkbox\r\n$(\"#allCheckbox\").on(\"change\", function(elem){\r\n	var elements = $(\"table td input[type=checkbox]\");\r\n	for (var i = elements.length; i--;) {\r\n	    elements[i].checked = this.checked;\r\n	}\r\n	if(this.checked){\r\n		$(\"#deleteAllButton\").css({display:\"block\"});\r\n	} else {\r\n		$(\"#deleteAllButton\").css({display:\"none\"});\r\n	}\r\n});\r\n -->");
-$templateCache.put("usersEdit.html","<div class=\"main-cointainer\">\r\n	<div ng-include=\"\'header.html\'\"></div>\r\n	<div class=\"container\">\r\n		<div class=\"row\">\r\n			<h1 class=\"col-md-offset-3\"> User Edit </h1>\r\n			<div class=\"col-md-6 col-md-offset-1\">\r\n				<form class=\"form-horizontal\">\r\n				  <div class=\"form-group\">\r\n				    <label for=\"first_name\" class=\"control-label col-md-3\">First Name</label>\r\n				    <div class=\"col-md-9\">\r\n				    	<input type=\"text\" class=\"form-control\" id=\"first_name\" placeholder=\"Nikita\">\r\n				    </div>\r\n				  </div> \r\n				  <div class=\"form-group\">\r\n				    <label for=\"last_name\" class=\"control-label col-md-3\">Last Name</label>\r\n				    <div class=\"col-md-9\">\r\n				    	<input type=\"text\" class=\"form-control\" id=\"last_name\" placeholder=\"Belonovych\">\r\n				    </div>\r\n				  </div> \r\n				  <div class=\"form-group\">\r\n				    <label for=\"email\" class=\"control-label col-md-3\">Email</label>\r\n				    <div class=\"col-md-9\">\r\n				    	<input type=\"email\" class=\"form-control\" id=\"email\" placeholder=\"your@gmail.com\">\r\n				    </div>\r\n				  </div>\r\n				  <div class=\"form-group\">\r\n				    <label for=\"email\" class=\"control-label col-md-3\">Number</label>\r\n				    <div class=\"col-md-9\">\r\n				    	<input type=\"email\" class=\"form-control\" id=\"email\" placeholder=\"380683328045\">\r\n				    </div>\r\n				  </div>\r\n				  <div class=\"form-group\">\r\n				    <label for=\"email\" class=\"control-label col-md-3\">Password</label>\r\n				    <div class=\"col-md-9\">\r\n				    	<input type=\"email\" class=\"form-control\" id=\"email\" placeholder=\"Password\">\r\n				    </div>\r\n				  </div>\r\n				  <div class=\"form-group\">\r\n				    <label for=\"email\" class=\"control-label col-md-3\">Confirm Password</label>\r\n				    <div class=\"col-md-9\">\r\n				    	<input type=\"email\" class=\"form-control\" id=\"email\" placeholder=\"Password\">\r\n				    </div>\r\n				  </div>\r\n				  <div class=\"col-md-3 col-md-offset-3\">\r\n				  	<button type=\"button\" class=\"btn submit-button btn-primary\" ng-click=\"save()\">Save</button>\r\n				  </div>\r\n				  <div class=\"col-md-3\">\r\n				  	<button type=\"button\" class=\"btn submit-button btn-primary\" ng-click=\"cancel()\">Cancel</button>\r\n				  </div> \r\n				</form>\r\n			</div>\r\n		</div>\r\n	</div>\r\n</div>");
+$templateCache.put("productsList.html","<div class=\"main-cointainer\">\r\n	<div ng-include=\"\'header.html\'\"></div>\r\n	<div class=\"container\">\r\n		<div class=\"row\">\r\n			<div class=\"table-top-buttons\">\r\n				<div class=\"col-md-2\">\r\n					<button type=\"button\" class=\"btn submit-button btn-primary\" ng-click=\"createProduct()\">Create New</button>\r\n				</div>\r\n				<div class=\"col-md-2\">\r\n					<button type=\"button\" class=\"btn submit-button btn-primary\" style=\"display: none\" id=\"deleteAllButton\" ng-click=\"deleteAll()\">Delete all</button>\r\n				</div>\r\n			</div>\r\n		</div>\r\n		<div class=\"row\">\r\n			<table class=\"table table-hover\" style=\"background-color: #F0F8FF;\">\r\n			  <thead>\r\n			    <tr style=\"background-color:	#6495ED;\">\r\n			      <th><div>\r\n			            <input id=\"allCheckbox\" class=\"checkbox-custom\" name=\"allCheckbox\" type=\"checkbox\">\r\n			            <label for=\"allCheckbox\"class=\"checkbox-custom-label\"></label>    \r\n			        </div></th>\r\n			      <th>№</th>\r\n			      <th><button class=\"no-style-button\" ng-click=\"order(\'name\')\">Name</button><span class=\"sortorder\" ng-show=\"predicate === \'name\'\" ng-class=\"{reverse:reverse}\"></span></th>\r\n			      <th><button class=\"no-style-button\" ng-click=\"order(\'price\')\">Price</button><span class=\"sortorder\" ng-show=\"predicate === \'price\'\" ng-class=\"{reverse:reverse}\"></span></th>\r\n			      <th><button class=\"no-style-button\" ng-click=\"order(\'amount\')\">Amount</button><span class=\"sortorder\" ng-show=\"predicate === \'amount\'\" ng-class=\"{reverse:reverse}\"></span></th>\r\n			      <th></th>\r\n			    </tr>\r\n			  </thead>\r\n			  <tbody ng-repeat=\"product in products | pagination:recordsToShow:pagination |orderBy:predicate:reverse\">\r\n			    <tr>\r\n			      <td>\r\n			      	<div>\r\n			            <input id=\"checkbox{{product.id}}\" class=\"checkbox-custom\" name=\"checkbox{{product.id}}\" type=\"checkbox\" value=\"{{product.uuid}}\">\r\n			            <label for=\"checkbox{{product.id}}\"class=\"checkbox-custom-label\"></label>    \r\n			        </div>\r\n			      </td>\r\n			      <td>{{ $index + indexValue()}}</td>\r\n			      <td>{{ product.name }}</td>\r\n			      <td>{{ product.price }}</td>\r\n			      <td>{{ product.amount }}</td>\r\n			      <td class=\"edit-delete-td\"><a href=\"/products/{{product.uuid}}\"><span class=\"glyphicon glyphicon-pencil\"></span></a>\r\n			      <button ng-click=\'delete(product.uuid)\' class=\"no-style-button\"><span class=\"glyphicon glyphicon-trash\"></span></button>\r\n			      <button class=\"show-info-button no-style-button\"><span class=\"glyphicon glyphicon-info-sign\"></span></button>\r\n			      </td>\r\n			    </tr>\r\n			    <tr class=\"success\" style=\"display: none;\"><td colspan=\"6\"><span><em><strong>Description:</strong>{{product.description}}</em></span></td></tr>\r\n			  </tbody>\r\n			</table>\r\n			<div class=\"col-md-2\">\r\n				<div class=\"form-group\">\r\n				  <label for=\"sel1\">Records on page:</label>\r\n				  <select class=\"form-control\" id=\"sel1\" ng-model=\"recordsToShow\" ng-change=\"filterPagination(this.recordsToShow)\">\r\n				    <option value=\"10\" ng-selected=\"true\">10</option>\r\n				    <option value=\"20\">20</option>\r\n				    <option value=\"50\">50</option>\r\n				  </select>\r\n				</div>\r\n			</div>\r\n			<div class=\"col-md-3 col-md-offset-7\">\r\n				<ul class=\"pagination\">\r\n				  <li ng-repeat=\"page in pages | paginationSize:originalProducts:recordsToShow\"><a href ng-click=\"setPagination(this.page)\">{{page}}</a></li>\r\n				</ul>\r\n			</div>\r\n		</div>\r\n	</div>\r\n</div>\r\n\r\n<!-- $(\"#allCheckbox\").on(\"change\", function(elem){\r\n	var elements = $(\"table td input[type=checkbox]\");\r\n	for (var i = elements.length; i--;) {\r\n	    elements[i].checked = this.checked;\r\n	}\r\n});\r\n\r\n$(\"input\").on(\"change\", function(){\r\n	if($(\"input:checked\").length){\r\n		$(\"#deleteAllButton\").css({display:\"block\"});\r\n	} else {\r\n		$(\"#deleteAllButton\").css({display:\"none\"});\r\n	}\r\n}); -->\r\n");
+$templateCache.put("usersEdit.html","<div class=\"main-cointainer\">\r\n	<div ng-include=\"\'header.html\'\"></div>\r\n	<div class=\"container\">\r\n		<div class=\"row\">\r\n			<h1 class=\"col-md-offset-3\"> User Edit </h1>\r\n			<div class=\"col-md-6 col-md-offset-1\">\r\n				<form class=\"form-horizontal\">\r\n				  <div class=\"form-group\">\r\n				    <label for=\"first_name\" class=\"control-label col-md-3\">First Name</label>\r\n				    <div class=\"col-md-9\">\r\n				    	<input type=\"text\" class=\"form-control\" id=\"first_name\" placeholder=\"Nikita\" ng-model=\"entity.first_name\">\r\n				    </div>\r\n				  </div> \r\n				  <div class=\"form-group\">\r\n				    <label for=\"last_name\" class=\"control-label col-md-3\">Last Name</label>\r\n				    <div class=\"col-md-9\">\r\n				    	<input type=\"text\" class=\"form-control\" id=\"last_name\" placeholder=\"Belonovych\" ng-model=\"entity.last_name\">\r\n				    </div>\r\n				  </div> \r\n				  <div class=\"form-group\">\r\n				    <label for=\"email\" class=\"control-label col-md-3\">Email</label>\r\n				    <div class=\"col-md-9\">\r\n				    	<input type=\"email\" class=\"form-control\" id=\"email\" placeholder=\"your@gmail.com\" ng-model=\"entity.email\">\r\n				    </div>\r\n				  </div>\r\n				  <div class=\"form-group\">\r\n				    <label for=\"number\" class=\"control-label col-md-3\">Number</label>\r\n				    <div class=\"col-md-9\">\r\n				    	<input type=\"text\" class=\"form-control\" id=\"number\" placeholder=\"380683328045\" ng-model=\"entity.phone_number\">\r\n				    </div>\r\n				  </div>\r\n				  <div class=\"form-group\">\r\n				    <label for=\"password\" class=\"control-label col-md-3\">Password</label>\r\n				    <div class=\"col-md-9\">\r\n				    	<input type=\"password\" class=\"form-control\" id=\"password\" placeholder=\"Password\" ng-model=\"entity.password\">\r\n				    </div>\r\n				  </div>\r\n				  <div class=\"form-group\">\r\n				    <label for=\"confirm_password\" class=\"control-label col-md-3\">Confirm Password</label>\r\n				    <div class=\"col-md-9\">\r\n				    	<input type=\"password\" class=\"form-control\" id=\"confirm_password\" placeholder=\"Password\">\r\n				    </div>\r\n				  </div>\r\n				  <div class=\"col-md-3 col-md-offset-3\">\r\n				  	<button type=\"button\" class=\"btn submit-button btn-primary\" ng-click=\"save()\">Save</button>\r\n				  </div>\r\n				  <div class=\"col-md-3\">\r\n				  	<button type=\"button\" class=\"btn submit-button btn-primary\" ng-click=\"cancel()\">Cancel</button>\r\n				  </div> \r\n				</form>\r\n			</div>\r\n		</div>\r\n	</div>\r\n</div>");
 $templateCache.put("usersList.html","<h1> works </h1>");}]);

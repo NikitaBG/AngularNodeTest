@@ -12,48 +12,70 @@
 			</div>
 		</div>
 		<div class="row">
-			<table class="table table-striped" style="background-color: lightblue">
+			<table class="table table-hover" style="background-color: #F0F8FF;">
 			  <thead>
-			    <tr>
+			    <tr style="background-color:	#6495ED;">
 			      <th><div>
 			            <input id="allCheckbox" class="checkbox-custom" name="allCheckbox" type="checkbox">
 			            <label for="allCheckbox"class="checkbox-custom-label"></label>    
 			        </div></th>
-			      <th>Name</th>
-			      <th>Price</th>
-			      <th>Description</th>
+			      <th>№</th>
+			      <th><button class="no-style-button" ng-click="order('name')">Name</button><span class="sortorder" ng-show="predicate === 'name'" ng-class="{reverse:reverse}"></span></th>
+			      <th><button class="no-style-button" ng-click="order('price')">Price</button><span class="sortorder" ng-show="predicate === 'price'" ng-class="{reverse:reverse}"></span></th>
+			      <th><button class="no-style-button" ng-click="order('amount')">Amount</button><span class="sortorder" ng-show="predicate === 'amount'" ng-class="{reverse:reverse}"></span></th>
+			      <th></th>
 			    </tr>
 			  </thead>
-			  <tbody>
-			    <tr ng-repeat="product in products">
+			  <tbody ng-repeat="product in products | pagination:recordsToShow:pagination |orderBy:predicate:reverse">
+			    <tr>
 			      <td>
 			      	<div>
-			            <input id="checkbox{{product.id}}" class="checkbox-custom" name="checkbox{{product.id}}" type="checkbox">
+			            <input id="checkbox{{product.id}}" class="checkbox-custom" name="checkbox{{product.id}}" type="checkbox" value="{{product.uuid}}">
 			            <label for="checkbox{{product.id}}"class="checkbox-custom-label"></label>    
 			        </div>
 			      </td>
+			      <td>{{ $index + indexValue()}}</td>
 			      <td>{{ product.name }}</td>
 			      <td>{{ product.price }}</td>
-			      <td>{{ product.description }}</td>
-			      <td><a href="/products/{{product.uuid}}"><span class="glyphicon glyphicon-pencil"></span></a></td>
-			      <td><button ng-click='delete(product.uuid)' class="list-delete-button"><span class="glyphicon glyphicon-trash"></span></button></td>
+			      <td>{{ product.amount }}</td>
+			      <td class="edit-delete-td"><a href="/products/{{product.uuid}}"><span class="glyphicon glyphicon-pencil"></span></a>
+			      <button ng-click='delete(product.uuid)' class="no-style-button"><span class="glyphicon glyphicon-trash"></span></button>
+			      <button class="show-info-button no-style-button"><span class="glyphicon glyphicon-info-sign"></span></button>
+			      </td>
 			    </tr>
+			    <tr class="success" style="display: none;"><td colspan="6"><span><em><strong>Description:</strong>{{product.description}}</em></span></td></tr>
 			  </tbody>
 			</table>
+			<div class="col-md-2">
+				<div class="form-group">
+				  <label for="sel1">Records on page:</label>
+				  <select class="form-control" id="sel1" ng-model="recordsToShow" ng-change="filterPagination(this.recordsToShow)">
+				    <option value="10" ng-selected="true">10</option>
+				    <option value="20">20</option>
+				    <option value="50">50</option>
+				  </select>
+				</div>
+			</div>
+			<div class="col-md-3 col-md-offset-7">
+				<ul class="pagination">
+				  <li ng-repeat="page in pages | paginationSize:originalProducts:recordsToShow"><a href ng-click="setPagination(this.page)">{{page}}</a></li>
+				</ul>
+			</div>
 		</div>
 	</div>
 </div>
 
-<!-- for checkbox
-$("#allCheckbox").on("change", function(elem){
+<!-- $("#allCheckbox").on("change", function(elem){
 	var elements = $("table td input[type=checkbox]");
 	for (var i = elements.length; i--;) {
 	    elements[i].checked = this.checked;
 	}
-	if(this.checked){
+});
+
+$("input").on("change", function(){
+	if($("input:checked").length){
 		$("#deleteAllButton").css({display:"block"});
 	} else {
 		$("#deleteAllButton").css({display:"none"});
 	}
-});
- -->
+}); -->

@@ -16,7 +16,7 @@ angular.module("app").controller('productsEditCtrl', ['$scope','$location','$res
 	}
 
 	$scope.save = function(){
-		productsService.save(isCreate ? "" : $scope.entity.uuid, $scope.entity, isCreate ? "" : $scope.entity.uuid).then(function(response){
+		productsService.save($scope.entity, isCreate ? "" : $scope.entity.uuid).then(function(response){
 			$location.path("/products")
 		}, function(status, data){
 			console.log(status);

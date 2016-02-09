@@ -1,4 +1,4 @@
-var app = angular.module('app',['ngRoute','ngResource','templates','appControllers','appServices','appDirectives']);
+var app = angular.module('app',['ngRoute','ngResource','templates','appControllers','appServices','appDirectives','appFilters']);
 
 app.config(['$routeProvider', '$locationProvider', 
  function($routeProvider,$locationProvider) {
@@ -59,3 +59,4 @@ app.run(function($rootScope, $location, $window, authService) {
 var appControllers = angular.module('appControllers', []);
 var appServices = angular.module('appServices', []);
 var appDirectives = angular.module('appDirectives', []);
+var appFilters = angular.module('appFilters', []);

@@ -12,7 +12,7 @@ var connection = mysql.createConnection({
    host     : 'localhost',
    user     : 'root',
    password : '111111',
-   database : 'node_test'
+   database : 'test_node'
  });
 
 app.set('jwtTokenSecret','mind_game');
@@ -48,10 +48,18 @@ var authJWT = function(req, res, next){
 };
 
 app.get("/api/users", authJWT, function(req, res) {
-	res.writeHead(200, {'Content-Type': 'application/json'});
 	connection.query('SELECT uuid,first_name,last_name,phone_number,email FROM users', function(err, results, fields){
 		if(err || '') { console.log(err); }
+		res.writeHead(200, {'Content-Type': 'application/json'});
 		res.end(JSON.stringify(results));
+	});
+});
+
+app.get("/api/users/:userId", authJWT, function(req,res){
+	connection.query('SELECT uuid,first_name,last_name,phone_number,email FROM users WHERE users.uuid="' + req.params.userId + '";', function(err, results, fields){
+		if(err || '') { console.log(err); }
+		res.writeHead(200, {'Content-Type': 'application/json'});
+		res.end(JSON.stringify({user: results[0]}));
 	});
 });
 
@@ -67,35 +75,15 @@ app.get("/api/currentUser", authJWT, function(req, res){
 	});
 });
 
-app.put("/users", authJWT, function(req, res){
+app.post("/api/updateUser/:userId", authJWT, function(req, res){
 	var user = req.body;
-	var query = ["UPDATE users SET first_name=",user.first_name," ,last_name=",user.last_name," ,email=",user.email," ,phone_number=",user.phone_number," WHERE id=2"];
+	var query = ["UPDATE users SET first_name=",user.first_name," ,last_name=",user.last_name," ,email=",user.email," ,phone_number=",user.phone_number," WHERE uuid='" + req.params.userId + "';"];
 	connection.query(query.join("'"), function(err, results, fields){
 		if(err || '') { console.log(err); }
 	});
 	res.writeHead(200);
 	res.end();
 });
-
-app.post("/users", function(req, res){
-	var user = req.body;
-	bcrypt.genSalt(10, function(err, salt) {
-    	bcrypt.hash(user.password, salt, function(err, hash) {
-	        var query = ['INSERT INTO users(first_name, last_name, email, phone_number, password, uuid) VALUES ("' + user.first_name,user.last_name,user.email,user.phone_number,hash + '",UUID())'];
-			connection.query(query.join('","'), function(err, results, fields){
-				if(err || '') { 
-					console.log(err);
-					res.writeHead(500);
-					res.end("SQL TRANSACTION ERROR");
-					return;
-				}
-			}); 
-	    });
-	});
-	res.writeHead(200);
-	res.end();
-});
-
 app.get("/api/products", authJWT, function(req, res) {
 	res.writeHead(200, {'Content-Type': 'application/json'});
 	connection.query('SELECT name,price,description,amount,uuid,id FROM products WHERE products.user_id=' + req.userId, function(err, results, fields){
@@ -144,23 +132,12 @@ app.post("/api/products", authJWT, function(req, res) {
 	res.writeHead(200);
 	res.end();
 });
-
-/*app.put("/api/products/:productId", authJWT, function(req, res) {
-	var product = req.body;
-	var query = ["UPDATE products SET name=",product.name," ,price=",product.price," ,description=",product.description," ,amount=",product.amount," WHERE uuid=",req.params.productId];
-	console.log(query.join("','"));
-	connection.query(query.join("','"), function(err, results, fields){
-		if(err || '') { console.log(err); }
-	});
-	res.writeHead(200);
-	res.end();
-});*/
-app.delete("/api/products/:uuid", authJWT, function(req, res) {
-	if(!req.params.uuid){
+app.post("/api/deleteProducts", authJWT, function(req, res) {
+	if(!req.body.uuids && !req.body.uuids.length){
 		res.writeHead(404);
 		res.end({"result":"No uuid."});
 	} else {
-		var query = "DELETE FROM products WHERE products.uuid='" + req.params.uuid + "'";
+		var query = "DELETE FROM products WHERE products.uuid IN ('" + req.body.uuids.join("','") + "')";
 		connection.query(query, function(err, results, fields){
 			if(err || '') { console.log(err); }
 		});
@@ -192,6 +169,41 @@ app.post("/api/login",function(req, res){
 			res.writeHead(404);
 			res.end(JSON.stringify({'result':"User with this email doesn't exists."}));
 		}
+	});
+});
+
+app.post("/api/signIn", function(req, res){
+	var user = req.body;
+	bcrypt.genSalt(10, function(err, salt) {
+    	bcrypt.hash(user.password, salt, function(err, hash) {
+	        var query = ['INSERT INTO users(first_name, last_name, email, phone_number, password, uuid) VALUES ("' + user.first_name,user.last_name,user.email,user.phone_number,hash + '",UUID())'];
+			connection.query(query.join('","'), function(err, results, fields){
+				if(err || '') { 
+					console.log(err);
+					res.writeHead(500);
+					res.end("SQL TRANSACTION ERROR");
+					return;
+				}
+				connection.query("SELECT * FROM users WHERE users.email = '" + user.email + "';", function(err, results, fields){
+					if(err || '') {console.log(err);}
+					if(results.length){
+						bcrypt.compare(user.password, results[0].password, function(err, result) {
+							if(result){
+								res.setHeader("Auth-token", createToken(results[0]));
+								res.writeHead(200);
+								res.end(JSON.stringify({'token':createToken(results[0])}));
+							} else {
+								res.writeHead(401);
+								res.end(JSON.stringify({'result':'WRONG PASSWORD'}));
+							}
+						});
+					} else {
+						res.writeHead(404);
+						res.end(JSON.stringify({'result':"User with this email doesn't exists."}));
+					}
+				});
+			}); 
+	    });
 	});
 });
 

@@ -6,6 +6,8 @@ appServices.factory('productsService',['$resource','$window','$location', functi
         save: function(entity, productId){
             return $resource("/api/products/:productId").save({productId: productId},entity).$promise;
         },
-
+        deleteAll: function(entity){
+        	return $resource("/api/deleteProducts").save({uuids:entity}).$promise;
+        }
     }
 }]);
