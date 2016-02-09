@@ -1,5 +1,7 @@
-angular.module("app").controller('productsListCtrl', ['$scope','$resource','$location','$route','productsService','$filter', function($scope, $resource, $location, $route, productsService, $filter) {
+angular.module("app").controller('productsListCtrl', ['$scope','$resource','$location','$route','productsService','$filter','$rootScope', function($scope, $resource, $location, $route, productsService, $filter, $rootScope) {
     
+	$rootScope.title = "Products";
+
     $scope.newProducts = $resource("/api/products").get({},function(response){
     	if(response.content.length){
     		$scope.products = response.content;
@@ -67,6 +69,16 @@ angular.module("app").controller('productsListCtrl', ['$scope','$resource','$loc
 	};
 
 	$scope.checkRow = function(elem){
-		elem.target.checked ? $scope.checkedUuids.push(elem.target.value) :  $scope.checkedUuids.splice($.inArray(elem.target.value,  $scope.checkedUuids));
+		if(elem.target.checked) {
+			$scope.checkedUuids.push(elem.target.value);
+		}  else {
+			for(var index = $scope.checkedUuids.length; index--;){
+				if($scope.checkedUuids[index] === elem.target.value){ $scope.checkedUuids.splice(index, 1); }
+			}
+		}
+	}
+
+	$scope.parsePrice = function(price){
+		return parseFloat(price).toFixed(2);
 	}
 }]);

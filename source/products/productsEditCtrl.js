@@ -1,4 +1,4 @@
-angular.module("app").controller('productsEditCtrl', ['$scope','$location','$resource','$route','productsService', function($scope,$location,$resource,$route,productsService) {
+angular.module("app").controller('productsEditCtrl', ['$scope','$location','$resource','$route','productsService','$rootScope', function($scope,$location,$resource,$route,productsService,$rootScope) {
 
 	var productsId = $route.current.params.productsId;
 	var isCreate = productsId === "new";
@@ -7,7 +7,9 @@ angular.module("app").controller('productsEditCtrl', ['$scope','$location','$res
 
 	if(isCreate) {
 		$scope.entity = {};
+		$rootScope.title = "Product Create";
 	} else {
+		$rootScope.title = "Product Edit";
 		productsService.get(productsId).then(function(response){
 			$scope.entity = response.product;
 		}, function(status,data){

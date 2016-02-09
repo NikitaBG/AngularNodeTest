@@ -11,6 +11,7 @@ html {
 }
 body {
   margin: 0;
+  padding-top: 50px;
 }
 article,
 aside,
@@ -133,7 +134,7 @@ input[type="submit"] {
 }
 button[disabled],
 html input[disabled] {
-  cursor: default;
+  cursor: not-allowed;
 }
 button::-moz-focus-inner,
 input::-moz-focus-inner {
@@ -4254,7 +4255,6 @@ select[multiple].input-group-sm > .input-group-btn > .btn {
 }
 .navbar-fixed-top,
 .navbar-fixed-bottom {
-  position: fixed;
   right: 0;
   left: 0;
   z-index: 1030;
@@ -4716,6 +4716,7 @@ fieldset[disabled] .navbar-inverse .btn-link:focus {
   padding-left: 0;
   margin: 20px 0;
   border-radius: 4px;
+  float:right;
 }
 .pagination > li {
   display: inline;

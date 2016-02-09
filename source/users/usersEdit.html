@@ -67,7 +67,7 @@
 						  <div class="form-group" ng-class="{'has-error':PasswordChange.confirm_password.$dirty && (!PasswordChange.confirm_password.$valid || (passwordEntity.password != passwordEntity.confirmPassword))}">
 						    <label for="confirm_password" class="control-label col-md-3">Confirm Password</label>
 						    <div class="col-md-9">
-						    	<input type="password" required class="form-control" id="confirm_password" name="confirm_password" placeholder="Password" ng-model="passwordEntity.confirmPassword" ng-pattern="/^[a-zA-Z0-9]{6,16}$/">
+						    	<input type="password" required class="form-control" id="confirm_password" name="confirm_password" placeholder="Confirm Password" ng-model="passwordEntity.confirmPassword" ng-pattern="/^[a-zA-Z0-9]{6,16}$/">
 						    </div>
 						    <label class="col-md-9 col-md-offset-3" ng-class="{'has-error':PasswordChange.confirm_password.$dirty && PasswordChange.confirm_password.$error.required}" ng-show="PasswordChange.confirm_password.$dirty && PasswordChange.confirm_password.$error.required">Confirm password required.</label>
 				    		<label class="col-md-9 col-md-offset-3" ng-class="{'has-error':PasswordChange.confirm_password.$dirty && PasswordChange.confirm_password.$error.pattern}" ng-show="PasswordChange.confirm_password.$dirty && PasswordChange.confirm_password.$error.pattern">Must contain from 6 to 16 letters and numbers.</label>

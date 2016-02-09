@@ -1,4 +1,6 @@
-angular.module("app").controller('userEditCtrl', ['$scope','$location','$resource','$route','userService', function($scope,$location,$resource,$route,userService) {
+angular.module("app").controller('userEditCtrl', ['$scope','$location','$resource','$route','userService','$rootScope', function($scope,$location,$resource,$route,userService,$rootScope) {
+
+	$rootScope.title = "Settings Edit";
 
 	$scope.showChangePassword = true;
 

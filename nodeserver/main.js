@@ -12,7 +12,7 @@ var connection = mysql.createConnection({
    host     : 'localhost',
    user     : 'root',
    password : '111111',
-   database : 'node_test'
+   database : 'test_node'
  });
 
 app.set('jwtTokenSecret','mind_game');
@@ -153,7 +153,7 @@ app.post("/api/login",function(req, res){
 		res.end(400);
 	}
 	connection.query("SELECT * FROM users WHERE users.email = '" + email + "';", function(err, results, fields){
-		console.log(err);
+		if(err || '') {console.log(err);}
 		if(results.length){
 			bcrypt.compare(req.body.password, results[0].password, function(err, result) {
 				if(result){

@@ -1,5 +1,7 @@
-appControllers.controller('loginCtrl', ['$scope', 'loginFormService','userService','authService','$window','$location', function($scope, loginFormService, userService,authService,$window,$location) {
+appControllers.controller('loginCtrl', ['$scope', 'loginFormService','userService','authService','$window','$location','$rootScope', function($scope, loginFormService, userService,authService,$window,$location,$rootScope) {
     
+    $rootScope.title = "Login";
+
     loginFormService();
 
     $scope.isError = true;

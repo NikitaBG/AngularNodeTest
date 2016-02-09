@@ -32,7 +32,7 @@
 			      </td>
 			      <td>{{ $index + indexValue()}}</td>
 			      <td>{{ product.name }}</td>
-			      <td>{{ product.price }}</td>
+			      <td>{{ parsePrice(product.price)}}</td>
 			      <td class="edit-delete-td"><a href="/products/{{product.uuid}}"><span class="glyphicon glyphicon-pencil"></span></a>
 			      <button ng-click='delete(product.uuid)' class="no-style-button"><span class="glyphicon glyphicon-trash"></span></button>
 			      <show-info-button/>
@@ -59,26 +59,3 @@
 		</div>
 	</div>
 </div>
-
-<!-- $("#allCheckbox").on("change", function(elem){
-	var elements = $("table td input[type=checkbox]");
-	for (var i = elements.length; i--;) {
-	    elements[i].checked = this.checked;
-	}
-});
-
-$("input").on("change", function(){
-	if($("input:checked").length){
-		$("#deleteAllButton").css({display:"block"});
-	} else {
-		$("#deleteAllButton").css({display:"none"});
-	}
-}); 
-
-$(".show-info-button").on("click", function(elem){
-    var isVisibleDescription = $(elem.target).parents("tbody").find("tr[class='success']").is(":visible");
-    $("tr[class='success']").hide("slow");
-    isVisibleDescription ? $(elem.target).parents("tbody").find("tr[class='success']").hide("slow") : $(elem.target).parents("tbody").find("tr[class='success']").show("slow");
-});
-
--->
