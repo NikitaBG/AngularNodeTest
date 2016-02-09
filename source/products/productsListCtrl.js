@@ -10,6 +10,8 @@ angular.module("app").controller('productsListCtrl', ['$scope','$resource','$loc
     	console.log(status);
     });
 
+    $scope.showDeleteAllButton = false;
+    $scope.checkedUuids = [];
     $scope.pagination = 1;
     $scope.recordsToShow = 10;
 	$scope.predicate = '';
@@ -22,7 +24,7 @@ angular.module("app").controller('productsListCtrl', ['$scope','$resource','$loc
 		$scope.pagination = page;
 	}
 	$scope.filterPagination = function(recordsToShow){
-		var pages = Math.ceil($scope.originalProducts.length / recordsToShow);
+		var pages = Math.ceil($scope.originalProducts.length / $scope.recordsToShow);
 		if(pages > 1){
 			$scope.pages = [];
     		for(var page = 1; page <= pages; page++){
@@ -55,13 +57,8 @@ angular.module("app").controller('productsListCtrl', ['$scope','$resource','$loc
 	};
 
 	$scope.deleteAll = function(){
-		var checked = $("table td input:checked");
-		var uuids = [];
-		for(var index = checked.length; index--;){
-			uuids.push(checked[index].value);
-		}
-		if(uuids.length){
-			productsService.deleteAll(uuids).then(function(){
+		if($scope.checkedUuids.length){
+			productsService.deleteAll($scope.checkedUuids).then(function(){
 				$route.reload();
 			}, function() {
 
@@ -69,7 +66,7 @@ angular.module("app").controller('productsListCtrl', ['$scope','$resource','$loc
 		}
 	};
 
-	$scope.goToPage = function(page){
-		console.log(page);
+	$scope.checkRow = function(elem){
+		elem.target.checked ? $scope.checkedUuids.push(elem.target.value) :  $scope.checkedUuids.splice($.inArray(elem.target.value,  $scope.checkedUuids));
 	}
 }]);

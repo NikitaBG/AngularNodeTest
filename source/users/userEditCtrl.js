@@ -1,5 +1,7 @@
 angular.module("app").controller('userEditCtrl', ['$scope','$location','$resource','$route','userService', function($scope,$location,$resource,$route,userService) {
 
+	$scope.showChangePassword = true;
+
 	userService.get($route.current.params.userId).then(function(response){
 		$scope.entity = response.user;
 		$scope.index = 0;
@@ -18,4 +20,17 @@ angular.module("app").controller('userEditCtrl', ['$scope','$location','$resourc
 	$scope.cancel = function() {
 		$location.path("/products");
 	};
+
+	$scope.showChangePasswordForm = function(){
+		$scope.showChangePassword = !$scope.showChangePassword;
+	}
+
+	$scope.savePassword = function(){
+		$scope.passwordEntity.uuid = $scope.entity.uuid;
+		userService.savePassword($scope.passwordEntity).then(function(response){
+			$location.path("/products");
+		}, function(status, data){
+			console.log(status);
+		});
+	}
 }]);

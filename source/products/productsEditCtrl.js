@@ -16,6 +16,7 @@ angular.module("app").controller('productsEditCtrl', ['$scope','$location','$res
 	}
 
 	$scope.save = function(){
+		$scope.entity.price = parseFloat($scope.entity.price.toString().replace(",","."));
 		productsService.save($scope.entity, isCreate ? "" : $scope.entity.uuid).then(function(response){
 			$location.path("/products")
 		}, function(status, data){

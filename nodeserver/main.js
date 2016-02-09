@@ -12,7 +12,7 @@ var connection = mysql.createConnection({
    host     : 'localhost',
    user     : 'root',
    password : '111111',
-   database : 'test_node'
+   database : 'node_test'
  });
 
 app.set('jwtTokenSecret','mind_game');
@@ -86,7 +86,7 @@ app.post("/api/updateUser/:userId", authJWT, function(req, res){
 });
 app.get("/api/products", authJWT, function(req, res) {
 	res.writeHead(200, {'Content-Type': 'application/json'});
-	connection.query('SELECT name,price,description,amount,uuid,id FROM products WHERE products.user_id=' + req.userId, function(err, results, fields){
+	connection.query('SELECT name,price,description,uuid,id FROM products WHERE products.user_id=' + req.userId, function(err, results, fields){
 		if(err || '') { console.log(err); } 
 		if(!results.length){
 			res.end(JSON.stringify({'results':'No data', 'content':[]}));
@@ -96,7 +96,7 @@ app.get("/api/products", authJWT, function(req, res) {
 });
 app.get("/api/products/:productId", authJWT, function(req, res) {
 	res.writeHead(200, {'Content-Type': 'application/json'});
-	connection.query('SELECT name,price,description,amount,uuid FROM products WHERE products.uuid="' + req.params.productId + '";', function(err, results, fields){
+	connection.query('SELECT name,price,description,uuid FROM products WHERE products.uuid="' + req.params.productId + '";', function(err, results, fields){
 		if(err || '') { console.log(err); }
 		if(!results.length){
 			res.end(JSON.stringify({'results':'No data', 'content':[]}));
@@ -108,9 +108,9 @@ app.post("/api/products/:productId", authJWT, function(req, res) {
 	var product = req.body;
 	var query;
 	if(req.params.productId){
-		query = ["UPDATE products SET name=",product.name," ,price=",product.price," ,description=",product.description," ,amount=",product.amount," WHERE uuid=",req.params.productId,""].join("'");
+		query = ["UPDATE products SET name=",product.name," ,price=",product.price," ,description=",product.description," WHERE uuid=",req.params.productId,""].join("'");
 	} else {
-		query = ["INSERT INTO products(name, price, description, amount, uuid, user_id) VALUES ('" + product.name,product.price,product.description,product.amount + "',UUID()," + req.userId + ")"].join("','");
+		query = ["INSERT INTO products(name, price, description, uuid, user_id) VALUES ('" + product.name,product.price,product.description + "',UUID()," + req.userId + ")"].join("','");
 	}
 	connection.query(query, function(err, results, fields){
 		if(err || '') { console.log(err); }
@@ -122,9 +122,9 @@ app.post("/api/products", authJWT, function(req, res) {
 	var product = req.body;
 	var query;
 	if(req.params.productId){
-		query = ["UPDATE products SET name=",product.name," ,price=",product.price," ,description=",product.description," ,amount=",product.amount," WHERE uuid=",req.params.productId,""].join("'");
+		query = ["UPDATE products SET name=",product.name," ,price=",product.price," ,description=",product.description," WHERE uuid=",req.params.productId,""].join("'");
 	} else {
-		query = ["INSERT INTO products(name, price, description, amount, uuid, user_id) VALUES ('" + product.name,product.price,product.description,product.amount + "',UUID()," + req.userId + ")"].join("','");
+		query = ["INSERT INTO products(name, price, description, uuid, user_id) VALUES ('" + product.name,product.price,product.description + "',UUID()," + req.userId + ")"].join("','");
 	}
 	connection.query(query, function(err, results, fields){
 		if(err || '') { console.log(err); }
@@ -161,13 +161,13 @@ app.post("/api/login",function(req, res){
 					res.writeHead(200);
 					res.end(JSON.stringify({'token':createToken(results[0])}));
 				} else {
-					res.writeHead(401);
-					res.end(JSON.stringify({'result':'WRONG PASSWORD'}));
+					res.writeHead(404);
+					res.end(JSON.stringify({'errorMessage':'Entered wrong password.'}));
 				}
 			});
 		} else {
 			res.writeHead(404);
-			res.end(JSON.stringify({'result':"User with this email doesn't exists."}));
+			res.end(JSON.stringify({'errorMessage':"User with this email doesn't exists."}));
 		}
 	});
 });
@@ -205,6 +205,33 @@ app.post("/api/signIn", function(req, res){
 			}); 
 	    });
 	});
+});
+
+app.post("/api/updatePassword", authJWT, function(req, res){
+	var body = req.body;
+	if(!body){
+		res.writeHead(404);
+		res.end(JSON.stringify({'result':"Incorrect request body"}));
+	}
+	console.log(body);
+	bcrypt.genSalt(10, function(err, salt) {
+    	bcrypt.hash(body.password, salt, function(err, hash) {
+	        var query = 'UPDATE users SET password="' + hash + '"  WHERE users.uuid="' + body.uuid + '";';
+	        console.log(query);
+			connection.query(query, function(err, results, fields){
+				if(err || '') { 
+					console.log(err);
+					res.writeHead(500);
+					res.end("SQL TRANSACTION ERROR");
+					return;
+				} else {
+					res.writeHead(200);
+					res.end(JSON.stringify({result: "Password changed."}))
+				}
+			}); 
+	    });
+	});
+
 });
 
 var server = app.listen(9000, function(){

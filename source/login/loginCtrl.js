@@ -2,11 +2,15 @@ appControllers.controller('loginCtrl', ['$scope', 'loginFormService','userServic
     
     loginFormService();
 
+    $scope.isError = true;
+    $scope.errorMessage = "sSda";
     $scope.logIn = function logIn(username, password) {
         if (username !== undefined && password !== undefined) {
 			userService.logIn(username, password).then(function(response){
                 proccesToken(response)
             }, function(status,data){
+                $scope.isError = false;
+                $scope.errorMessage = status.data.errorMessage;
                 console.log(status);
             });
         }

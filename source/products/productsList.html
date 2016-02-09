@@ -7,22 +7,18 @@
 					<button type="button" class="btn submit-button btn-primary" ng-click="createProduct()">Create New</button>
 				</div>
 				<div class="col-md-2">
-					<button type="button" class="btn submit-button btn-primary" style="display: none" id="deleteAllButton" ng-click="deleteAll()">Delete all</button>
+					<button type="button" class="btn submit-button btn-primary" id="deleteAllButton" ng-click="deleteAll()" ng-show="checkedUuids.length">Delete all</button>
 				</div>
 			</div>
 		</div>
 		<div class="row">
 			<table class="table table-hover" style="background-color: #F0F8FF;">
 			  <thead>
-			    <tr style="background-color:	#6495ED;">
-			      <th><div>
-			            <input id="allCheckbox" class="checkbox-custom" name="allCheckbox" type="checkbox">
-			            <label for="allCheckbox"class="checkbox-custom-label"></label>    
-			        </div></th>
+			    <tr style="background-color:#6495ED;">
+			      <th></th>
 			      <th>№</th>
 			      <th><button class="no-style-button" ng-click="order('name')">Name</button><span class="sortorder" ng-show="predicate === 'name'" ng-class="{reverse:reverse}"></span></th>
 			      <th><button class="no-style-button" ng-click="order('price')">Price</button><span class="sortorder" ng-show="predicate === 'price'" ng-class="{reverse:reverse}"></span></th>
-			      <th><button class="no-style-button" ng-click="order('amount')">Amount</button><span class="sortorder" ng-show="predicate === 'amount'" ng-class="{reverse:reverse}"></span></th>
 			      <th></th>
 			    </tr>
 			  </thead>
@@ -30,20 +26,19 @@
 			    <tr>
 			      <td>
 			      	<div>
-			            <input id="checkbox{{product.id}}" class="checkbox-custom" name="checkbox{{product.id}}" type="checkbox" value="{{product.uuid}}">
+			            <input id="checkbox{{product.id}}" class="checkbox-custom" name="checkbox{{product.id}}" type="checkbox" value="{{product.uuid}}" ng-click="checkRow($event)">
 			            <label for="checkbox{{product.id}}"class="checkbox-custom-label"></label>    
 			        </div>
 			      </td>
 			      <td>{{ $index + indexValue()}}</td>
 			      <td>{{ product.name }}</td>
 			      <td>{{ product.price }}</td>
-			      <td>{{ product.amount }}</td>
 			      <td class="edit-delete-td"><a href="/products/{{product.uuid}}"><span class="glyphicon glyphicon-pencil"></span></a>
 			      <button ng-click='delete(product.uuid)' class="no-style-button"><span class="glyphicon glyphicon-trash"></span></button>
-			      <button class="show-info-button no-style-button"><span class="glyphicon glyphicon-info-sign"></span></button>
+			      <show-info-button/>
 			      </td>
 			    </tr>
-			    <tr class="success" style="display: none;"><td colspan="6"><span><em><strong>Description:</strong>{{product.description}}</em></span></td></tr>
+			    <tr class="success" style="display: none;"><td colspan="5"><span><em><strong>Description:</strong>{{product.description}}</em></span></td></tr>
 			  </tbody>
 			</table>
 			<div class="col-md-2">
@@ -78,4 +73,12 @@ $("input").on("change", function(){
 	} else {
 		$("#deleteAllButton").css({display:"none"});
 	}
-}); -->
+}); 
+
+$(".show-info-button").on("click", function(elem){
+    var isVisibleDescription = $(elem.target).parents("tbody").find("tr[class='success']").is(":visible");
+    $("tr[class='success']").hide("slow");
+    isVisibleDescription ? $(elem.target).parents("tbody").find("tr[class='success']").hide("slow") : $(elem.target).parents("tbody").find("tr[class='success']").show("slow");
+});
+
+-->

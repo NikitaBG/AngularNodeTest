@@ -18,7 +18,7 @@
 body {
   background: #c1bdba;
   font-family: 'Titillium Web', sans-serif;
-  overflow-y: hidden;
+  overflow-y: auto;
 }
 
 .login-form {
@@ -285,4 +285,13 @@ body {
   content: '\f129';
   font-family: 'FontAwesome';
   margin-right: 20%;
+}
+label.has-error{
+  color: #a94442;
+}
+span.has-error{
+  color: #FF0000;
+}
+h3.has-error{
+  color: #a94442;
 }
