@@ -1,0 +1,60 @@
+
+<div class="container">
+	<div class="row">
+		<div class="table-top-buttons">
+			<div class="col-md-2">
+				<button type="button" class="btn submit-button btn-primary" ng-click="createProduct()">Create New</button>
+			</div>
+			<div class="col-md-2">
+				<button type="button" class="btn submit-button btn-primary" id="deleteAllButton" ng-click="deleteAll()" ng-show="checkedUuids.length">Delete all</button>
+			</div>
+		</div>
+	</div>
+	<div class="row">
+		<table class="table table-hover" style="background-color: #F0F8FF;">
+		  <thead>
+		    <tr style="background-color:#6495ED;">
+		      <th></th>
+		      <th>№</th>
+		      <th><button class="no-style-button" ng-click="order('name')">Name</button><span class="sortorder" ng-show="predicate === 'name'" ng-class="{reverse:reverse}"></span></th>
+		      <th><button class="no-style-button" ng-click="order('price')">Price</button><span class="sortorder" ng-show="predicate === 'price'" ng-class="{reverse:reverse}"></span></th>
+		      <th></th>
+		    </tr>
+		  </thead>
+		  <tbody ng-repeat="product in products | pagination:recordsToShow:pagination |orderBy:predicate:reverse">
+		    <tr>
+		      <td>
+		      	<div>
+		            <input id="checkbox{{product.id}}" class="checkbox-custom" name="checkbox{{product.id}}" type="checkbox" value="{{product.uuid}}" ng-click="checkRow($event)">
+		            <label for="checkbox{{product.id}}"class="checkbox-custom-label"></label>    
+		        </div>
+		      </td>
+		      <td>{{ $index + indexValue()}}</td>
+		      <td>{{ product.name }}</td>
+		      <td>{{ parsePrice(product.price)}}</td>
+		      <td class="edit-delete-td"><a href="/products/{{product.uuid}}"><span class="glyphicon glyphicon-pencil"></span></a>
+		      <button ng-click='delete(product.uuid)' class="no-style-button"><span class="glyphicon glyphicon-trash"></span></button>
+		      <show-info-button/>
+		      </td>
+		    </tr>
+		    <tr class="success" style="display: none;"><td colspan="5"><span><em><strong>Description:</strong>{{product.description}}</em></span></td></tr>
+		  </tbody>
+		</table>
+		<div class="col-md-2">
+			<div class="form-group">
+			  <label for="sel1">Records on page:</label>
+			  <select class="form-control" id="sel1" ng-model="recordsToShow" ng-change="filterPagination(this.recordsToShow)">
+			    <option value="10" ng-selected="true">10</option>
+			    <option value="20">20</option>
+			    <option value="50">50</option>
+			  </select>
+			</div>
+		</div>
+		<div class="col-md-3 col-md-offset-7">
+			<ul class="pagination">
+			  <li ng-repeat="page in pages | paginationSize:originalProducts:recordsToShow"><a href ng-click="setPagination(this.page)">{{page}}</a></li>
+			</ul>
+		</div>
+	</div>
+</div>
+
