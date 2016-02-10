@@ -1,42 +1,40 @@
-<div class="main-cointainer">
-	<div ng-include="'header.html'"></div>
-	<div class="container">
-		<div class="row">
-			<h1 class="col-md-offset-5"> {{header}}</h1>
-			<div class="col-md-6 col-md-offset-3">
-				<form name="ProductEdit" class="form-horizontal">
-				  <div class="form-group col-md-11" ng-class="{'has-error':ProductEdit.name.$dirty && !ProductEdit.name.$valid}">
-				    <label for="name" class="control-label col-md-3">Name<span class="has-error">*</span></label>
-				    <div class="col-md-9">
-				    	<input type="text" autocomplete="off" required class="form-control" id="name" name="name" placeholder="Samsung gt-850f" ng-model="entity.name" ng-pattern="/[a-zA-Z0-9 !?,.-_]{3,255}/">
-				    </div>
-				    <label class="col-md-9 col-md-offset-3" ng-class="{'has-error':ProductEdit.name.$dirty && ProductEdit.name.$error.required}" ng-show="ProductEdit.name.$dirty && ProductEdit.name.$error.required">Name Required.</label>
-				    <label class="col-md-9 col-md-offset-3" ng-class="{'has-error':ProductEdit.name.$dirty && ProductEdit.name.$error.pattern}" ng-show="ProductEdit.name.$dirty && ProductEdit.name.$error.pattern">Must contain form 3 to 255 characters.</label>
-				  </div> 
-				  <div class="form-group col-md-11" ng-class="{'has-error':ProductEdit.price.$dirty && !ProductEdit.price.$valid}">
-				    <label for="price" class="control-label col-md-3">Price<span class="has-error">*</span></label>
-				    <div class="col-md-9">
-					  <input type="number" required class="form-control" id="price" name="price" step='0.01' value='0.00' max='10000.0' placeholder='8999.0' min='0' ng-model="entity.price" ng-keyup="parse(this)" ng-pattern="/[0-9]{1,6}[,]?[0-9]{0,2}/">
-					</div>
-					<label class="col-md-9 col-md-offset-3" ng-class="{'has-error': ProductEdit.price.$dirty && ProductEdit.price.$error.required}" ng-show="ProductEdit.price.$dirty && ProductEdit.price.$error.required">Price required.</label>
-				    <label class="col-md-9 col-md-offset-3" ng-class="{'has-error': ProductEdit.price.$dirty && (ProductEdit.price.$error.min || ProductEdit.price.$error.max)}" ng-show="ProductEdit.price.$dirty && (ProductEdit.price.$error.min || ProductEdit.price.$error.max)">Number value must be between from 0,00 to 100000,0</label>
-				  </div> 
-				  <div class="form-group col-md-11" ng-class="{'has-error':ProductEdit.description.$dirty && !ProductEdit.description.$valid}">
-				    <label for="price" class="control-label col-md-3">Description<span class="has-error">*</span></label>
-				    <div class="col-md-9">
-				    	<textarea required rows="5" class="form-control" name="description" id="description" placeholder="Realy nice smartphone for this price category, also..." ng-model="entity.description" ng-pattern="/[a-zA-Z0-9 !?,.-_]{10,1000}/"></textarea>
-				    </div>
-				    <label class="col-md-9 col-md-offset-3" ng-class="{'has-error':ProductEdit.description.$dirty && ProductEdit.description.$error.required}" ng-show="ProductEdit.description.$dirty && ProductEdit.description.$error.required">Description Required.</label>
-				    <label class="col-md-9 col-md-offset-3" ng-class="{'has-error':ProductEdit.description.$dirty && ProductEdit.description.$error.pattern}" ng-show="ProductEdit.description.$dirty && ProductEdit.description.$error.pattern">Must contain form 10 to 1000 characters.</label>
-				  </div>
-				  <div class="col-md-3 col-md-offset-3">
-				  	<button type="button" class="btn submit-button btn-primary" ng-click="save()" ng-disabled="!ProductEdit.$valid">Save</button>
-				  </div>
-				  <div class="col-md-3">
-				  	<button type="button" class="btn submit-button btn-primary" ng-click="cancel()">Cancel</button>
-				  </div>
-				</form>
-			</div>
+
+<div class="container">
+	<div class="row">
+		<h1 class="col-md-offset-5"> {{header}}</h1>
+		<div class="col-md-6 col-md-offset-3">
+			<form name="ProductEdit" class="form-horizontal">
+			  <div class="form-group col-md-11" ng-class="{'has-error':ProductEdit.name.$dirty && !ProductEdit.name.$valid}">
+			    <label for="name" class="control-label col-md-3">Name<span class="has-error">*</span></label>
+			    <div class="col-md-9">
+			    	<input type="text" autocomplete="off" required class="form-control" id="name" name="name" placeholder="Samsung gt-850f" ng-model="entity.name" ng-pattern="/[a-zA-Z0-9 !?,.-_]{3,255}/">
+			    </div>
+			    <label class="col-md-9 col-md-offset-3" ng-class="{'has-error':ProductEdit.name.$dirty && ProductEdit.name.$error.required}" ng-show="ProductEdit.name.$dirty && ProductEdit.name.$error.required">Name Required.</label>
+			    <label class="col-md-9 col-md-offset-3" ng-class="{'has-error':ProductEdit.name.$dirty && ProductEdit.name.$error.pattern}" ng-show="ProductEdit.name.$dirty && ProductEdit.name.$error.pattern">Must contain form 3 to 255 characters.</label>
+			  </div> 
+			  <div class="form-group col-md-11" ng-class="{'has-error':ProductEdit.price.$dirty && !ProductEdit.price.$valid}">
+			    <label for="price" class="control-label col-md-3">Price<span class="has-error">*</span></label>
+			    <div class="col-md-9">
+				  <input type="number" required class="form-control" id="price" name="price" step='0.01' value='0.00' max='10000.0' placeholder='8999.0' min='0' ng-model="entity.price" ng-keyup="parse(this)" ng-pattern="/[0-9]{1,6}[,]?[0-9]{0,2}/">
+				</div>
+				<label class="col-md-9 col-md-offset-3" ng-class="{'has-error': ProductEdit.price.$dirty && ProductEdit.price.$error.required}" ng-show="ProductEdit.price.$dirty && ProductEdit.price.$error.required">Price required.</label>
+			    <label class="col-md-9 col-md-offset-3" ng-class="{'has-error': ProductEdit.price.$dirty && (ProductEdit.price.$error.min || ProductEdit.price.$error.max)}" ng-show="ProductEdit.price.$dirty && (ProductEdit.price.$error.min || ProductEdit.price.$error.max)">Number value must be between from 0,00 to 100000,0</label>
+			  </div> 
+			  <div class="form-group col-md-11" ng-class="{'has-error':ProductEdit.description.$dirty && !ProductEdit.description.$valid}">
+			    <label for="price" class="control-label col-md-3">Description<span class="has-error">*</span></label>
+			    <div class="col-md-9">
+			    	<textarea required rows="5" class="form-control" name="description" id="description" placeholder="Realy nice smartphone for this price category, also..." ng-model="entity.description" ng-pattern="/[a-zA-Z0-9 !?,.-_]{10,1000}/"></textarea>
+			    </div>
+			    <label class="col-md-9 col-md-offset-3" ng-class="{'has-error':ProductEdit.description.$dirty && ProductEdit.description.$error.required}" ng-show="ProductEdit.description.$dirty && ProductEdit.description.$error.required">Description Required.</label>
+			    <label class="col-md-9 col-md-offset-3" ng-class="{'has-error':ProductEdit.description.$dirty && ProductEdit.description.$error.pattern}" ng-show="ProductEdit.description.$dirty && ProductEdit.description.$error.pattern">Must contain form 10 to 1000 characters.</label>
+			  </div>
+			  <div class="col-md-3 col-md-offset-3">
+			  	<button type="button" class="btn submit-button btn-primary" ng-click="save()" ng-disabled="!ProductEdit.$valid">Save</button>
+			  </div>
+			  <div class="col-md-3">
+			  	<button type="button" class="btn submit-button btn-primary" ng-click="cancel()">Cancel</button>
+			  </div>
+			</form>
 		</div>
 	</div>
 </div>

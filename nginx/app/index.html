@@ -5,14 +5,14 @@
     <title ng-bind="title"></title>
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link href="/style.css" rel="stylesheet">
-    <!-- <link href="/css/bootstrap.css" rel="stylesheet">
-    <link href="/css/own.css" rel="stylesheet">
-    <link href="/css/font-awesome.css" rel="stylesheet"> -->
     <script src="/app.js"></script>
   </head>
 
-<body>
+<body ng-controller="mainCtrl as main"> 
+    <div class="main-cointainer">
+        <div ng-include="'header.html'"></div>
         <div ng-view>
         </div>
+    </div>
 </body>
 </html>

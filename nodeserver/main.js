@@ -12,7 +12,7 @@ var connection = mysql.createConnection({
    host     : 'localhost',
    user     : 'root',
    password : '111111',
-   database : 'test_node'
+   database : 'node_test'
  });
 
 app.set('jwtTokenSecret','mind_game');

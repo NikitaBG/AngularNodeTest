@@ -9,8 +9,8 @@ var gulp = require('gulp'),
 var path = {
 	sourceJs: "source/**/*.js",
 	sourceHtml: "source/**/*.html",
-	style: "webcontent/style/css/*.css",
-	styleJs: "webcontent/lib/**/*.js"
+	style: "content/style/css/*.css",
+	styleJs: "content/lib/**/*.js"
 };
 
 var libs = {
@@ -23,7 +23,7 @@ var libs = {
 gulp.task('bowerRemoveSources', function() {
 	return gulp.src(propsToArray(libs))
 		.pipe(rename({dirname: ''}))
-		.pipe(gulp.dest('webcontent/lib/'));
+		.pipe(gulp.dest('content/lib/'));
 });
 
 gulp.task('js', function() {
