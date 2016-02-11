@@ -1,5 +1,7 @@
 # AngularNodeTest
 
+Required installed: NodeJS, MySQL
+
 Launch instructions:
 
 Apply MySQL "Dump20160210.sql" dump, at your database.
