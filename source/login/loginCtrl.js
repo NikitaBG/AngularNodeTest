@@ -18,8 +18,8 @@ appControllers.controller('loginCtrl', ['$scope', 'loginFormService','userServic
         }
     }
 
-    $scope.signIn = function(){
-        userService.signIn($scope.entity).then(function(response){
+    $scope.signUp = function(){
+        userService.signUp($scope.entity).then(function(response){
             proccesToken(response);
         }, function(status,data){
             console.log(status);
@@ -27,9 +27,9 @@ appControllers.controller('loginCtrl', ['$scope', 'loginFormService','userServic
     };
 
     var proccesToken = function(response){
-        if(response && response.token){
+        if(response && response.content){
             authService.isLogged = true;
-            $window.sessionStorage.token = response.token;
+            $window.sessionStorage.token = response.content;
             $location.path("/products");
         }
     }

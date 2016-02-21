@@ -16,8 +16,8 @@ appServices.factory('userService',['$resource','$window','$location','authServic
         update: function(entity){
             return $resource("/api/updateUser/:userId").save({userId: entity.uuid}, entity).$promise;
         },
-        signIn: function(entity){
-            return $resource("/api/signIn").save(entity).$promise;
+        signUp: function(entity){
+            return $resource("/api/signUp").save(entity).$promise;
         },
         savePassword: function(entity){
             return $resource("/api/updatePassword").save(entity).$promise;
